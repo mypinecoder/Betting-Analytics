@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Tipster Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.min.css">
+</head>
+<body>
+    <header><h1>Advanced Tipster Dashboard</h1></header>
+    <main>
+        <div class="upload-container card">
+            <h2>Upload Files</h2>
+            <form id="upload-form">
+                <input type="file" id="csv-files" name="files" multiple required accept=".csv">
+                <button type="submit">Analyze</button>
+            </form>
+            <div id="loading-spinner" class="spinner" style="display: none;"></div>
+        </div>
+
+        <div id="dashboard-results" class="hidden">
+            <div id="kpi-section" class="analysis-section hidden">
+                <h2>Key Performance Indicators</h2>
+                <div class="summary-grid">
+                    <div class="card"><h3>Most Tipped Jockey</h3><p id="kpi-jockey">N/A</p></div>
+                    <div class="card"><h3>Avg. Tipped Win BSP</h3><p id="kpi-bsp">N/A</p></div>
+                    <div class="card"><h3>Total Prize Money</h3><p id="kpi-prize">N/A</p></div>
+                </div>
+            </div>
+
+            <div id="performance-section" class="analysis-section hidden">
+                <h2>Tipster Performance</h2>
+                <div class="card"><div id="performance-summary-table"></div></div>
+            </div>
+
+            <div id="market-analysis-section" class="analysis-section hidden">
+                <h2>Market Analysis</h2>
+                <div class="charts-grid">
+                    <div class="card chart-container"><canvas id="marketDriftChart"></canvas></div>
+                    <div class="card chart-container"><canvas id="marketVolumeChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="factor-analysis-section" class="analysis-section hidden">
+                <h2>Factor Analysis</h2>
+                <div class="charts-grid">
+                    <div class="card chart-container"><canvas id="jockeyAnalysisChart"></canvas></div>
+                    <div class="card chart-container"><canvas id="barrierAnalysisChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="raw-data-section" class="analysis-section hidden">
+                <h2>Detailed Data Breakdown</h2>
+                <div class="card">
+                    <table id="merged-table" class="display" style="width:100%"></table>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
