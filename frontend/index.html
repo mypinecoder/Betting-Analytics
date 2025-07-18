@@ -3,64 +3,800 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Tipster Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Advanced Betting Performance Analyzer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.4.0/css/responsive.dataTables.min.css">
+    <style>
+        /* Color Scheme */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --light-bg: #ecf0f1;
+            --card-bg: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --border-color: #bdc3c7;
+        }
+
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--light-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Main Container */
+        main {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 3rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: var(--light-bg);
+        }
+
+        .upload-area:hover {
+            border-color: var(--secondary-color);
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        .upload-area.drag-over {
+            border-color: var(--success-color);
+            background: rgba(39, 174, 96, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 1rem;
+            text-align: left;
+        }
+
+        .file-item {
+            background: var(--light-bg);
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .analyze-btn {
+            background: var(--success-color);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            width: 100%;
+            font-weight: 600;
+        }
+
+        .analyze-btn:hover:not(:disabled) {
+            background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+
+        .analyze-btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+        }
+
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin: 0.5rem 0;
+        }
+
+        .kpi-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .kpi-icon {
+            font-size: 2rem;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Section Styles */
+        .analysis-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--light-bg);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-icon {
+            color: var(--secondary-color);
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid var(--light-bg);
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        table.dataTable {
+            width: 100% !important;
+            border-collapse: collapse;
+        }
+
+        table.dataTable thead th {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px;
+            font-weight: 600;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        table.dataTable tbody tr {
+            border-bottom: 1px solid var(--light-bg);
+        }
+
+        table.dataTable tbody tr:hover {
+            background: rgba(52, 152, 219, 0.05);
+        }
+
+        table.dataTable tbody td {
+            padding: 12px;
+            color: var(--text-primary);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--light-bg);
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            color: var(--primary-color);
+        }
+
+        .tab.active {
+            color: var(--secondary-color);
+            border-bottom-color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Loading Spinner */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid var(--light-bg);
+            border-top: 5px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--light-bg);
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat-card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+        }
+
+        .stat-card-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-success {
+            color: var(--success-color);
+        }
+
+        .text-danger {
+            color: var(--danger-color);
+        }
+
+        .text-warning {
+            color: var(--warning-color);
+        }
+
+        .mt-2 { margin-top: 2rem; }
+        .mb-2 { margin-bottom: 2rem; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            main {
+                padding: 0 1rem;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .tabs {
+                flex-wrap: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--light-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
 </head>
 <body>
-    <header><h1>Advanced Tipster Dashboard</h1></header>
+    <header>
+        <div class="header-content">
+            <h1><i class="fas fa-chart-line"></i> Advanced Betting Performance Analyzer</h1>
+            <p class="subtitle">Comprehensive analysis of betting tips, market movements, and performance metrics</p>
+        </div>
+    </header>
+
     <main>
-        <div class="upload-container card">
-            <h2>Upload Files</h2>
-            <form id="upload-form">
-                <input type="file" id="csv-files" name="files" multiple required accept=".csv">
-                <button type="submit">Analyze</button>
-            </form>
-            <div id="loading-spinner" class="spinner" style="display: none;"></div>
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h2><i class="fas fa-upload"></i> Upload CSV Files</h2>
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <p>Drag and drop files here or click to browse</p>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+                    Accepted files: Tips (YYYY-MM-DD.csv), Race Data, Win Prices, Place Prices
+                </p>
+                <input type="file" id="file-input" class="file-input" multiple accept=".csv">
+            </div>
+            <div id="file-list" class="file-list"></div>
+            <button id="analyze-btn" class="analyze-btn" disabled>
+                <i class="fas fa-chart-bar"></i> Analyze Data
+            </button>
         </div>
 
-        <div id="dashboard-results" class="hidden">
-            <div id="kpi-section" class="analysis-section hidden">
-                <h2>Key Performance Indicators</h2>
-                <div class="summary-grid">
-                    <div class="card"><h3>Most Tipped Jockey</h3><p id="kpi-jockey">N/A</p></div>
-                    <div class="card"><h3>Avg. Tipped Win BSP</h3><p id="kpi-bsp">N/A</p></div>
-                    <div class="card"><h3>Total Prize Money</h3><p id="kpi-prize">N/A</p></div>
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="spinner-overlay hidden">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Results Dashboard -->
+        <div id="dashboard" class="hidden">
+            <!-- KPIs -->
+            <div class="kpi-grid mb-2">
+                <div class="kpi-card">
+                    <i class="fas fa-file-alt kpi-icon"></i>
+                    <div class="kpi-value" id="kpi-total-tips">0</div>
+                    <div class="kpi-label">Total Tips</div>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-users kpi-icon"></i>
+                    <div class="kpi-value" id="kpi-tipsters">0</div>
+                    <div class="kpi-label">Tipsters</div>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-horse kpi-icon"></i>
+                    <div class="kpi-value" id="kpi-races">0</div>
+                    <div class="kpi-label">Races Analyzed</div>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-dollar-sign kpi-icon"></i>
+                    <div class="kpi-value" id="kpi-prize-money">$0</div>
+                    <div class="kpi-label">Total Prize Money</div>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-map-marked-alt kpi-icon"></i>
+                    <div class="kpi-value" id="kpi-tracks">0</div>
+                    <div class="kpi-label">Tracks</div>
+                </div>
+                <div class="kpi-card">
+                    <i class="fas fa-trophy kpi-icon"></i>
+                    <div class="kpi-value" id="kpi-field-size">0</div>
+                    <div class="kpi-label">Avg Field Size</div>
                 </div>
             </div>
 
-            <div id="performance-section" class="analysis-section hidden">
-                <h2>Tipster Performance</h2>
-                <div class="card"><div id="performance-summary-table"></div></div>
+            <!-- Tabs Navigation -->
+            <div class="tabs">
+                <button class="tab active" data-tab="tipster-performance">
+                    <i class="fas fa-user-chart"></i> Tipster Performance
+                </button>
+                <button class="tab" data-tab="market-analysis">
+                    <i class="fas fa-chart-line"></i> Market Analysis
+                </button>
+                <button class="tab" data-tab="factor-analysis">
+                    <i class="fas fa-percentage"></i> Factor Analysis
+                </button>
+                <button class="tab" data-tab="track-analysis">
+                    <i class="fas fa-road"></i> Track Analysis
+                </button>
+                <button class="tab" data-tab="position-analysis">
+                    <i class="fas fa-list-ol"></i> Selection Position
+                </button>
+                <button class="tab" data-tab="raw-data">
+                    <i class="fas fa-table"></i> Raw Data
+                </button>
             </div>
 
-            <div id="market-analysis-section" class="analysis-section hidden">
-                <h2>Market Analysis</h2>
+            <!-- Tab Contents -->
+            <!-- Tipster Performance Tab -->
+            <div id="tipster-performance" class="tab-content active">
+                <div class="analysis-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-medal section-icon"></i>
+                            Return on Investment Analysis
+                        </h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="roi-table" class="display">
+                            <thead>
+                                <tr>
+                                    <th>Tipster</th>
+                                    <th>Total Tips</th>
+                                    <th>Winners</th>
+                                    <th>Strike Rate %</th>
+                                    <th>Total Invested</th>
+                                    <th>Total Return</th>
+                                    <th>Profit/Loss</th>
+                                    <th>ROI %</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="charts-grid mt-2">
+                    <div class="chart-container">
+                        <h4 class="chart-title">Strike Rate Comparison</h4>
+                        <canvas id="strike-rate-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h4 class="chart-title">ROI Performance</h4>
+                        <canvas id="roi-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Market Analysis Tab -->
+            <div id="market-analysis" class="tab-content">
+                <div class="analysis-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-exchange-alt section-icon"></i>
+                            Price Movement Analysis
+                        </h3>
+                    </div>
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <h4 class="chart-title">Market Movement Categories</h4>
+                            <canvas id="market-movement-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h4 class="chart-title">Average Movement by Tipster</h4>
+                            <canvas id="tipster-movement-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="analysis-section mt-2">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-chart-area section-icon"></i>
+                            Trading Volume Analysis
+                        </h3>
+                    </div>
+                    <div class="chart-container">
+                        <h4 class="chart-title">Pre-Post Trading Volume by Tipster</h4>
+                        <canvas id="volume-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Factor Analysis Tab -->
+            <div id="factor-analysis" class="tab-content">
                 <div class="charts-grid">
-                    <div class="card chart-container"><canvas id="marketDriftChart"></canvas></div>
-                    <div class="card chart-container"><canvas id="marketVolumeChart"></canvas></div>
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-user section-icon"></i>
+                                Top Jockeys
+                            </h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="jockey-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-grip-lines-vertical section-icon"></i>
+                                Barrier Analysis
+                            </h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="barrier-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid mt-2">
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-ruler section-icon"></i>
+                                Distance Distribution
+                            </h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="distance-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-coins section-icon"></i>
+                                Odds Distribution
+                            </h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="odds-chart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div id="factor-analysis-section" class="analysis-section hidden">
-                <h2>Factor Analysis</h2>
-                <div class="charts-grid">
-                    <div class="card chart-container"><canvas id="jockeyAnalysisChart"></canvas></div>
-                    <div class="card chart-container"><canvas id="barrierAnalysisChart"></canvas></div>
+            <!-- Track Analysis Tab -->
+            <div id="track-analysis" class="tab-content">
+                <div class="analysis-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-map-marker-alt section-icon"></i>
+                            Performance by Track
+                        </h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="track-table" class="display">
+                            <thead>
+                                <tr>
+                                    <th>Track</th>
+                                    <th>Total Tips</th>
+                                    <th>Winners</th>
+                                    <th>Strike Rate %</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="analysis-section mt-2">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-clock section-icon"></i>
+                            Time-based Analysis
+                        </h3>
+                    </div>
+                    <div class="chart-container">
+                        <h4 class="chart-title">Tips by Race Time (Hour)</h4>
+                        <canvas id="hourly-chart"></canvas>
+                    </div>
                 </div>
             </div>
 
-            <div id="raw-data-section" class="analysis-section hidden">
-                <h2>Detailed Data Breakdown</h2>
-                <div class="card">
-                    <table id="merged-table" class="display" style="width:100%"></table>
+            <!-- Position Analysis Tab -->
+            <div id="position-analysis" class="tab-content">
+                <div class="analysis-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-list-ol section-icon"></i>
+                            Performance by Selection Position
+                        </h3>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card" id="position-1">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">First Selection</span>
+                                <i class="fas fa-star text-warning"></i>
+                            </div>
+                            <div class="stat-card-value">0%</div>
+                            <div class="stat-card-subtitle">Strike Rate</div>
+                        </div>
+                        <div class="stat-card" id="position-2">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">Second Selection</span>
+                                <i class="fas fa-medal text-secondary"></i>
+                            </div>
+                            <div class="stat-card-value">0%</div>
+                            <div class="stat-card-subtitle">Strike Rate</div>
+                        </div>
+                        <div class="stat-card" id="position-3">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">Third Selection</span>
+                                <i class="fas fa-award" style="color: #cd7f32;"></i>
+                            </div>
+                            <div class="stat-card-value">0%</div>
+                            <div class="stat-card-subtitle">Strike Rate</div>
+                        </div>
+                        <div class="stat-card" id="position-4">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">Fourth Selection</span>
+                                <i class="fas fa-certificate"></i>
+                            </div>
+                            <div class="stat-card-value">0%</div>
+                            <div class="stat-card-subtitle">Strike Rate</div>
+                        </div>
+                    </div>
+                    <div class="chart-container mt-2">
+                        <h4 class="chart-title">Position Performance Comparison</h4>
+                        <canvas id="position-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Raw Data Tab -->
+            <div id="raw-data" class="tab-content">
+                <div class="analysis-section">
+                    <div class="section-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-database section-icon"></i>
+                            Detailed Tips Data
+                        </h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="raw-data-table" class="display">
+                            <thead>
+                                <tr>
+                                    <th>Tipster</th>
+                                    <th>Track</th>
+                                    <th>Race</th>
+                                    <th>Position</th>
+                                    <th>Horse</th>
+                                    <th>Jockey</th>
+                                    <th>Barrier</th>
+                                    <th>Odds</th>
+                                    <th>BSP</th>
+                                    <th>Result</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script type="text/javascript" src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.4.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
