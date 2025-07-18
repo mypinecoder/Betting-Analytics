@@ -120,7 +120,12 @@ async function analyzeData() {
     });
 
     try {
-        const response = await fetch('http://localhost:8000/analyze/', {
+        // Determine the API URL based on environment
+        const apiUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8000'
+            : window.location.origin;
+            
+        const response = await fetch(`${apiUrl}/analyze/`, {
             method: 'POST',
             body: formData
         });
