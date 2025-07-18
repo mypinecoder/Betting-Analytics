@@ -368,14 +368,14 @@ function updateMarketAnalysis(analysis) {
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            callback: (value) => ' + value.toLocaleString()'
+                            callback: (value) => '$' + value.toLocaleString()
                         }
                     }
                 },
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            label: (context) => ' + context.parsed.y.toLocaleString()'
+                            label: (context) => '$' + context.parsed.y.toLocaleString()
                         }
                     }
                 }

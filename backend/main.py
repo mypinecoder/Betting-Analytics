@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from typing import List, Dict, Optional
 import io
 import re
@@ -9,6 +10,11 @@ import traceback
 import math
 from datetime import datetime
 from collections import defaultdict
+import os
+import logging
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Advanced Betting Performance Analyzer API")
 
@@ -427,3 +433,12 @@ async def analyze_betting_files(files: List[UploadFile] = File(...)):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+# Static Files
+script_dir = os.path.dirname(__file__)
+frontend_dir = os.path.join(os.path.dirname(script_dir), "frontend")
+
+if os.path.exists(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+else:
+    logger.error(f"Frontend directory not found at: {frontend_dir}")

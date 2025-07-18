@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Betting Analytics Dashboard - Demo</title>
+    <meta name="description" content="Advanced betting performance analyzer with comprehensive data visualization and statistical analysis capabilities">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .demo-container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+        }
+        .demo-title {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .demo-subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+        .demo-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .demo-button:hover {
+            transform: translateY(-2px);
+        }
+        .features {
+            margin-top: 2rem;
+            text-align: left;
+        }
+        .feature {
+            margin: 0.5rem 0;
+            color: #666;
+        }
+        .feature::before {
+            content: "✓ ";
+            color: #27ae60;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1 class="demo-title">🎯 Betting Analytics</h1>
+        <p class="demo-subtitle">
+            Comprehensive betting performance analyzer with advanced data visualization
+        </p>
+        
+        <div class="features">
+            <div class="feature">Tipster ROI & Performance Analysis</div>
+            <div class="feature">Market Movement & Volume Tracking</div>
+            <div class="feature">Factor Analysis (Jockey, Barrier, Distance)</div>
+            <div class="feature">Track & Time-based Performance</div>
+            <div class="feature">Interactive Charts & Data Tables</div>
+        </div>
+        
+        <br>
+        <a href="index.html" class="demo-button">
+            View Dashboard Demo →
+        </a>
+        
+        <p style="margin-top: 2rem; font-size: 0.9rem; color: #999;">
+            Demo shows sample data. For full functionality with file uploads, run locally.
+        </p>
+    </div>
+</body>
+</html>
