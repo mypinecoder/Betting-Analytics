@@ -217,120 +217,37 @@ def analyze_market_movements(merged_df):
 def perform_full_analysis(dataframes: Dict) -> Dict:
     """Performs a comprehensive analysis on the provided data."""
     response = {
-        "kpis": {},
-        "tipster_analysis": {},
-        "market_analysis": {},
         "factor_analysis": {},
-        "position_analysis": {},
-        "track_analysis": {},
-        "time_analysis": {},
+        "other_analysis": {},
         "raw_data": {}
     }
     
     # Get base dataframes
     tips_df = dataframes.get('tips', pd.DataFrame())
     race_data_df = dataframes.get('race_data', pd.DataFrame())
-    win_prices_df = dataframes.get('win_prices', pd.DataFrame())
-    place_prices_df = dataframes.get('place_prices', pd.DataFrame())
-    
-    if tips_df.empty:
-        return response
-    
-    # Create merged dataset
     merged_df = tips_df.copy()
-    
     if not race_data_df.empty:
-        merged_df = pd.merge(
-            merged_df, 
-            race_data_df, 
-            on=['Track', 'Race', 'Horse Name'], 
-            how='left'
-        )
-    
-    if not win_prices_df.empty:
-        win_subset = win_prices_df[['Track', 'Race', 'Horse Name', 'win_lose', 'bsp', 
-                                   'ppwap', 'morningwap', 'ppmax', 'ppmin',
-                                   'morningtradedvol', 'pptradedvol', 'iptradedvol']]
-        merged_df = pd.merge(merged_df, win_subset, on=['Track', 'Race', 'Horse Name'], how='left')
-    
-    if not place_prices_df.empty:
-        place_subset = place_prices_df[['Track', 'Race', 'Horse Name', 'win_lose']].rename(
-            columns={'win_lose': 'place_result'}
-        )
-        merged_df = pd.merge(merged_df, place_subset, on=['Track', 'Race', 'Horse Name'], how='left')
-    
-    # Calculate KPIs
-    response['kpis'] = {
-        'total_tips': len(tips_df),
-        'unique_tipsters': tips_df['Tip Website'].nunique(),
-        'unique_tracks': tips_df['Track'].nunique(),
-        'unique_races': len(tips_df.groupby(['Track', 'Race'])),
-        'total_prize_money': race_data_df['Prize_Numeric'].sum() if 'Prize_Numeric' in race_data_df.columns else 0,
-        'avg_field_size': race_data_df.groupby(['Track', 'Race'])['Horse Name'].count().mean() if not race_data_df.empty else 0
-    }
-    
-    # Tipster Performance Analysis
-    if not win_prices_df.empty:
-        roi_analysis = calculate_roi(tips_df, win_prices_df)
-        response['tipster_analysis']['roi_summary'] = roi_analysis.to_dict(orient='records')
-        
-        # Best and worst performers
-        response['tipster_analysis']['best_roi'] = roi_analysis.nlargest(5, 'ROI %').to_dict(orient='records')
-        response['tipster_analysis']['best_strike_rate'] = roi_analysis.nlargest(5, 'Strike Rate').to_dict(orient='records')
-    
-    # Position Analysis
-    if not win_prices_df.empty:
-        position_analysis = analyze_by_position(tips_df, win_prices_df)
-        response['position_analysis'] = position_analysis.to_dict(orient='records')
-    
-    # Market Analysis
-    if 'bsp' in merged_df.columns and 'morningwap' in merged_df.columns:
-        market_movements = analyze_market_movements(merged_df)
-        if not market_movements.empty:
-            movement_summary = market_movements['movement_category'].value_counts().to_dict()
-            response['market_analysis']['movement_categories'] = movement_summary
-            
-            # Average movements by tipster
-            tipster_movements = market_movements.groupby('Tip Website')['price_movement'].agg(['mean', 'std']).reset_index()
-            response['market_analysis']['tipster_movements'] = tipster_movements.to_dict(orient='records')
-    
-    # Track Analysis
-    track_performance = merged_df.groupby('Track').agg({
-        'Horse Name': 'count',
-        'win_lose': 'sum' if 'win_lose' in merged_df.columns else lambda x: 0
-    }).reset_index()
-    track_performance.columns = ['Track', 'Total Tips', 'Winners']
-    track_performance['Strike Rate'] = (track_performance['Winners'] / 
-                                       track_performance['Total Tips'] * 100)
-    response['track_analysis'] = track_performance.to_dict(orient='records')
-    
-    # Time-based Analysis
-    if 'RaceTime' in merged_df.columns:
-        merged_df['Hour'] = pd.to_datetime(merged_df['RaceTime'], format='%H:%M:%S', errors='coerce').dt.hour
-        hourly_performance = merged_df.groupby('Hour').agg({
-            'Horse Name': 'count',
-            'win_lose': 'sum' if 'win_lose' in merged_df.columns else lambda x: 0
-        }).reset_index()
-        hourly_performance.columns = ['Hour', 'Total Tips', 'Winners']
-        response['time_analysis']['hourly'] = hourly_performance.to_dict(orient='records')
-    
-    # Factor Analysis
-    if 'JockeyName' in merged_df.columns:
+        merged_df = pd.merge(merged_df, race_data_df, on=['Track', 'Race', 'Horse Name'], how='left')
+
+    # Debug: Log number of non-null BestOdds after merging
+    if 'BestOdds' in merged_df.columns:
+        non_null_bestodds = merged_df['BestOdds'].notna().sum()
+        logger.info(f"Non-null BestOdds after merging: {non_null_bestodds} out of {len(merged_df)}")
+
+    # Only factor analysis and new relevant analytics
+    # Factor Analysis (only if data present)
+    if 'JockeyName' in merged_df.columns and merged_df['JockeyName'].notna().any():
         jockey_tips = merged_df['JockeyName'].value_counts().head(20)
         response['factor_analysis']['top_jockeys'] = {
             'labels': jockey_tips.index.tolist(),
             'data': jockey_tips.values.tolist()
         }
-    
-    if 'Barrier' in merged_df.columns:
+    if 'Barrier' in merged_df.columns and merged_df['Barrier'].notna().any():
         barrier_analysis = merged_df.groupby('Barrier').agg({
-            'Horse Name': 'count',
-            'win_lose': 'sum' if 'win_lose' in merged_df.columns else lambda x: 0
+            'Horse Name': 'count'
         }).reset_index()
         response['factor_analysis']['barrier_analysis'] = barrier_analysis.to_dict(orient='records')
-    
-    if 'Distance' in merged_df.columns:
-        # Group distances into categories
+    if 'Distance' in merged_df.columns and merged_df['Distance'].notna().any():
         merged_df['Distance_Numeric'] = merged_df['Distance'].str.replace('m', '').astype(float)
         merged_df['Distance_Category'] = pd.cut(
             merged_df['Distance_Numeric'],
@@ -342,37 +259,37 @@ def perform_full_analysis(dataframes: Dict) -> Dict:
             'labels': distance_analysis.index.tolist(),
             'data': distance_analysis.values.tolist()
         }
-    
-    # Odds Analysis
-    if 'BestOdds' in merged_df.columns:
+    if 'BestOdds' in merged_df.columns and merged_df['BestOdds'].notna().any():
         odds_ranges = pd.cut(
             merged_df['BestOdds'].dropna(),
             bins=[0, 3, 5, 10, 20, float('inf')],
             labels=['Favs (< $3)', 'Short ($3-5)', 'Medium ($5-10)', 'Long ($10-20)', 'Outsiders ($20+)']
         )
         odds_distribution = odds_ranges.value_counts()
-        response['factor_analysis']['odds_distribution'] = {
+        odds_dist_obj = {
             'labels': odds_distribution.index.tolist(),
             'data': odds_distribution.values.tolist()
         }
-    
-    # Volume Analysis
-    if 'pptradedvol' in merged_df.columns:
-        volume_by_tipster = merged_df.groupby('Tip Website')['pptradedvol'].sum().sort_values(ascending=False)
-        response['market_analysis']['volume_by_tipster'] = {
-            'labels': volume_by_tipster.index.tolist(),
-            'data': volume_by_tipster.values.tolist()
-        }
-    
-    # Raw data samples for tables
+        response['factor_analysis']['odds_distribution'] = odds_dist_obj
+        response['other_analysis']['odds_distribution'] = odds_dist_obj
+
+    # Other relevant analytics
+    # Field size distribution
+    if not race_data_df.empty and 'Race' in race_data_df.columns and 'Horse Name' in race_data_df.columns:
+        field_sizes = race_data_df.groupby(['Track', 'Race'])['Horse Name'].count()
+        response['other_analysis']['field_size_distribution'] = field_sizes.value_counts().sort_index().to_dict()
+    # Prize money distribution
+    if not race_data_df.empty and 'Prize_Numeric' in race_data_df.columns:
+        prize_bins = pd.cut(race_data_df['Prize_Numeric'], bins=[0, 10000, 25000, 50000, 100000, float('inf')], labels=['<10k', '10-25k', '25-50k', '50-100k', '100k+'])
+        prize_dist = prize_bins.value_counts().sort_index().to_dict()
+        response['other_analysis']['prize_money_distribution'] = prize_dist
+    # Tipster consensus heatmap (tip frequency by tipster and horse)
+    if not tips_df.empty:
+        consensus = tips_df.groupby(['Tip Website', 'Horse Name']).size().unstack(fill_value=0)
+        response['other_analysis']['tipster_consensus'] = consensus.to_dict()
+
+    # Raw data sample
     response['raw_data']['recent_tips'] = merged_df.head(100).to_dict(orient='records')
-    response['raw_data']['summary_stats'] = {
-        'total_selections': len(merged_df),
-        'winning_selections': merged_df['win_lose'].sum() if 'win_lose' in merged_df.columns else 0,
-        'avg_odds': merged_df['BestOdds'].mean() if 'BestOdds' in merged_df.columns else 0,
-        'data_date': tips_df['Scrape Date'].iloc[0] if 'Scrape Date' in tips_df.columns else 'Unknown'
-    }
-    
     return clean_for_json(response)
 
 @app.post("/analyze/")

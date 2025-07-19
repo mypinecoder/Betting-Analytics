@@ -144,36 +144,136 @@ async function analyzeData() {
 
 // Populate dashboard with analysis results
 function populateDashboard(data) {
-    // Update KPIs
-    updateKPIs(data.kpis);
-
-    // Update charts and tables for each analysis type
-    if (data.tipster_analysis) {
-        updateTipsterAnalysis(data.tipster_analysis);
+    // Helper to show/hide and set 'No Data' message
+    function handleSection(sectionId, hasData, message = 'No Data Available') {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        if (hasData) {
+            section.classList.remove('hidden');
+            const msg = section.querySelector('.no-data-msg');
+            if (msg) msg.remove();
+        } else {
+            section.classList.add('hidden');
+            if (!section.querySelector('.no-data-msg')) {
+                const msg = document.createElement('div');
+                msg.className = 'no-data-msg';
+                msg.style = 'color:#888;text-align:center;padding:2rem;';
+                msg.textContent = message;
+                section.appendChild(msg);
+            }
+        }
     }
 
-    if (data.market_analysis) {
-        updateMarketAnalysis(data.market_analysis);
-    }
+    // Factor Analysis
+    const factorHasData = data.factor_analysis && (
+        (data.factor_analysis.top_jockeys && data.factor_analysis.top_jockeys.data && data.factor_analysis.top_jockeys.data.length > 0) ||
+        (data.factor_analysis.barrier_analysis && data.factor_analysis.barrier_analysis.length > 0) ||
+        (data.factor_analysis.distance_distribution && data.factor_analysis.distance_distribution.data && data.factor_analysis.distance_distribution.data.length > 0) ||
+        (data.factor_analysis.odds_distribution && data.factor_analysis.odds_distribution.data && data.factor_analysis.odds_distribution.data.length > 0)
+    );
+    handleSection('factor-analysis', factorHasData);
+    if (factorHasData) updateFactorAnalysis(data.factor_analysis);
 
-    if (data.factor_analysis) {
-        updateFactorAnalysis(data.factor_analysis);
-    }
+    // Other Analysis
+    const other = data.other_analysis || {};
+    const oddsHasData = other.odds_distribution && other.odds_distribution.data && other.odds_distribution.data.length > 0;
+    const fieldHasData = other.field_size_distribution && Object.keys(other.field_size_distribution).length > 0;
+    const prizeHasData = other.prize_money_distribution && Object.keys(other.prize_money_distribution).length > 0;
+    const consensusHasData = other.tipster_consensus && Object.keys(other.tipster_consensus).length > 0;
+    const otherHasData = oddsHasData || fieldHasData || prizeHasData || consensusHasData;
+    handleSection('other-analysis', otherHasData);
+    if (otherHasData) updateOtherAnalysis(other);
 
-    if (data.track_analysis) {
-        updateTrackAnalysis(data.track_analysis);
-    }
+    // Raw Data
+    const rawHasData = data.raw_data && data.raw_data.recent_tips && data.raw_data.recent_tips.length > 0;
+    handleSection('raw-data', rawHasData);
+    if (rawHasData) updateRawDataTable(data.raw_data);
+}
 
-    if (data.position_analysis) {
-        updatePositionAnalysis(data.position_analysis);
+// New: Render other analysis charts
+function updateOtherAnalysis(other) {
+    // Odds Distribution
+    if (other.odds_distribution && other.odds_distribution.data && other.odds_distribution.data.length > 0) {
+        createChart('odds-chart-other', {
+            type: 'bar',
+            data: {
+                labels: other.odds_distribution.labels,
+                datasets: [{
+                    label: 'Number of Tips',
+                    data: other.odds_distribution.data,
+                    backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#e67e22', '#e74c3c']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
     }
-
-    if (data.time_analysis) {
-        updateTimeAnalysis(data.time_analysis);
+    // Field Size Distribution
+    if (other.field_size_distribution && Object.keys(other.field_size_distribution).length > 0) {
+        createChart('fieldsize-chart', {
+            type: 'bar',
+            data: {
+                labels: Object.keys(other.field_size_distribution),
+                datasets: [{
+                    label: 'Number of Races',
+                    data: Object.values(other.field_size_distribution),
+                    backgroundColor: '#3498db'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
     }
-
-    if (data.raw_data) {
-        updateRawDataTable(data.raw_data);
+    // Prize Money Distribution
+    if (other.prize_money_distribution && Object.keys(other.prize_money_distribution).length > 0) {
+        createChart('prizemoney-chart', {
+            type: 'pie',
+            data: {
+                labels: Object.keys(other.prize_money_distribution),
+                datasets: [{
+                    data: Object.values(other.prize_money_distribution),
+                    backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#e67e22', '#e74c3c']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'right' } }
+            }
+        });
+    }
+    // Tipster Consensus Heatmap (simple bar for now)
+    if (other.tipster_consensus && Object.keys(other.tipster_consensus).length > 0) {
+        // For demo: show top 10 horses with most tips (sum across tipsters)
+        const horseTotals = {};
+        for (const tipster in other.tipster_consensus) {
+            for (const horse in other.tipster_consensus[tipster]) {
+                horseTotals[horse] = (horseTotals[horse] || 0) + other.tipster_consensus[tipster][horse];
+            }
+        }
+        const sorted = Object.entries(horseTotals).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        createChart('consensus-chart', {
+            type: 'bar',
+            data: {
+                labels: sorted.map(x => x[0]),
+                datasets: [{
+                    label: 'Total Tips',
+                    data: sorted.map(x => x[1]),
+                    backgroundColor: '#f39c12'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
     }
 }
 
@@ -471,7 +571,7 @@ function updateFactorAnalysis(analysis) {
 
     // Odds distribution
     if (analysis.odds_distribution) {
-        createChart('odds-chart', {
+        createChart('odds-chart-factor', {
             type: 'bar',
             data: {
                 labels: analysis.odds_distribution.labels,

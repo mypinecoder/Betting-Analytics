@@ -399,8 +399,16 @@
             color: var(--danger-color);
         }
 
+
         .text-warning {
             color: var(--warning-color);
+        }
+
+        .no-data-msg {
+            color: #888;
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.1rem;
         }
 
         .mt-2 { margin-top: 2rem; }
@@ -485,56 +493,15 @@
 
         <!-- Results Dashboard -->
         <div id="dashboard" class="hidden">
-            <!-- KPIs -->
-            <div class="kpi-grid mb-2">
-                <div class="kpi-card">
-                    <i class="fas fa-file-alt kpi-icon"></i>
-                    <div class="kpi-value" id="kpi-total-tips">0</div>
-                    <div class="kpi-label">Total Tips</div>
-                </div>
-                <div class="kpi-card">
-                    <i class="fas fa-users kpi-icon"></i>
-                    <div class="kpi-value" id="kpi-tipsters">0</div>
-                    <div class="kpi-label">Tipsters</div>
-                </div>
-                <div class="kpi-card">
-                    <i class="fas fa-horse kpi-icon"></i>
-                    <div class="kpi-value" id="kpi-races">0</div>
-                    <div class="kpi-label">Races Analyzed</div>
-                </div>
-                <div class="kpi-card">
-                    <i class="fas fa-dollar-sign kpi-icon"></i>
-                    <div class="kpi-value" id="kpi-prize-money">$0</div>
-                    <div class="kpi-label">Total Prize Money</div>
-                </div>
-                <div class="kpi-card">
-                    <i class="fas fa-map-marked-alt kpi-icon"></i>
-                    <div class="kpi-value" id="kpi-tracks">0</div>
-                    <div class="kpi-label">Tracks</div>
-                </div>
-                <div class="kpi-card">
-                    <i class="fas fa-trophy kpi-icon"></i>
-                    <div class="kpi-value" id="kpi-field-size">0</div>
-                    <div class="kpi-label">Avg Field Size</div>
-                </div>
-            </div>
+
 
             <!-- Tabs Navigation -->
             <div class="tabs">
-                <button class="tab active" data-tab="tipster-performance">
-                    <i class="fas fa-user-chart"></i> Tipster Performance
-                </button>
-                <button class="tab" data-tab="market-analysis">
-                    <i class="fas fa-chart-line"></i> Market Analysis
-                </button>
-                <button class="tab" data-tab="factor-analysis">
+                <button class="tab active" data-tab="factor-analysis">
                     <i class="fas fa-percentage"></i> Factor Analysis
                 </button>
-                <button class="tab" data-tab="track-analysis">
-                    <i class="fas fa-road"></i> Track Analysis
-                </button>
-                <button class="tab" data-tab="position-analysis">
-                    <i class="fas fa-list-ol"></i> Selection Position
+                <button class="tab" data-tab="other-analysis">
+                    <i class="fas fa-chart-bar"></i> Distributions & Consensus
                 </button>
                 <button class="tab" data-tab="raw-data">
                     <i class="fas fa-table"></i> Raw Data
@@ -542,83 +509,12 @@
             </div>
 
             <!-- Tab Contents -->
-            <!-- Tipster Performance Tab -->
-            <div id="tipster-performance" class="tab-content active">
-                <div class="analysis-section">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-medal section-icon"></i>
-                            Return on Investment Analysis
-                        </h3>
-                    </div>
-                    <div class="table-container">
-                        <table id="roi-table" class="display">
-                            <thead>
-                                <tr>
-                                    <th>Tipster</th>
-                                    <th>Total Tips</th>
-                                    <th>Winners</th>
-                                    <th>Strike Rate %</th>
-                                    <th>Total Invested</th>
-                                    <th>Total Return</th>
-                                    <th>Profit/Loss</th>
-                                    <th>ROI %</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                </div>
 
-                <div class="charts-grid mt-2">
-                    <div class="chart-container">
-                        <h4 class="chart-title">Strike Rate Comparison</h4>
-                        <canvas id="strike-rate-chart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <h4 class="chart-title">ROI Performance</h4>
-                        <canvas id="roi-chart"></canvas>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Market Analysis Tab -->
-            <div id="market-analysis" class="tab-content">
-                <div class="analysis-section">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-exchange-alt section-icon"></i>
-                            Price Movement Analysis
-                        </h3>
-                    </div>
-                    <div class="charts-grid">
-                        <div class="chart-container">
-                            <h4 class="chart-title">Market Movement Categories</h4>
-                            <canvas id="market-movement-chart"></canvas>
-                        </div>
-                        <div class="chart-container">
-                            <h4 class="chart-title">Average Movement by Tipster</h4>
-                            <canvas id="tipster-movement-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="analysis-section mt-2">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-chart-area section-icon"></i>
-                            Trading Volume Analysis
-                        </h3>
-                    </div>
-                    <div class="chart-container">
-                        <h4 class="chart-title">Pre-Post Trading Volume by Tipster</h4>
-                        <canvas id="volume-chart"></canvas>
-                    </div>
-                </div>
-            </div>
 
             <!-- Factor Analysis Tab -->
-            <div id="factor-analysis" class="tab-content">
+            <div id="factor-analysis" class="tab-content active">
                 <div class="charts-grid">
                     <div class="analysis-section">
                         <div class="section-header">
@@ -666,96 +562,63 @@
                             </h3>
                         </div>
                         <div class="chart-container">
-                            <canvas id="odds-chart"></canvas>
+                            <canvas id="odds-chart-factor"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Track Analysis Tab -->
-            <div id="track-analysis" class="tab-content">
-                <div class="analysis-section">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-map-marker-alt section-icon"></i>
-                            Performance by Track
-                        </h3>
+
+
+
+            <!-- Other Analysis Tab -->
+            <div id="other-analysis" class="tab-content">
+                <div class="charts-grid">
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-chart-pie section-icon"></i>
+                                Odds Distribution
+                            </h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="odds-chart-other"></canvas>
+                        </div>
                     </div>
-                    <div class="table-container">
-                        <table id="track-table" class="display">
-                            <thead>
-                                <tr>
-                                    <th>Track</th>
-                                    <th>Total Tips</th>
-                                    <th>Winners</th>
-                                    <th>Strike Rate %</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-users section-icon"></i>
+                                Field Size Distribution
+                            </h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="fieldsize-chart"></canvas>
+                        </div>
                     </div>
                 </div>
-
-                <div class="analysis-section mt-2">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-clock section-icon"></i>
-                            Time-based Analysis
-                        </h3>
-                    </div>
-                    <div class="chart-container">
-                        <h4 class="chart-title">Tips by Race Time (Hour)</h4>
-                        <canvas id="hourly-chart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Position Analysis Tab -->
-            <div id="position-analysis" class="tab-content">
-                <div class="analysis-section">
-                    <div class="section-header">
-                        <h3 class="section-title">
-                            <i class="fas fa-list-ol section-icon"></i>
-                            Performance by Selection Position
-                        </h3>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-card" id="position-1">
-                            <div class="stat-card-header">
-                                <span class="stat-card-title">First Selection</span>
-                                <i class="fas fa-star text-warning"></i>
-                            </div>
-                            <div class="stat-card-value">0%</div>
-                            <div class="stat-card-subtitle">Strike Rate</div>
+                <div class="charts-grid mt-2">
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-dollar-sign section-icon"></i>
+                                Prize Money Distribution
+                            </h3>
                         </div>
-                        <div class="stat-card" id="position-2">
-                            <div class="stat-card-header">
-                                <span class="stat-card-title">Second Selection</span>
-                                <i class="fas fa-medal text-secondary"></i>
-                            </div>
-                            <div class="stat-card-value">0%</div>
-                            <div class="stat-card-subtitle">Strike Rate</div>
-                        </div>
-                        <div class="stat-card" id="position-3">
-                            <div class="stat-card-header">
-                                <span class="stat-card-title">Third Selection</span>
-                                <i class="fas fa-award" style="color: #cd7f32;"></i>
-                            </div>
-                            <div class="stat-card-value">0%</div>
-                            <div class="stat-card-subtitle">Strike Rate</div>
-                        </div>
-                        <div class="stat-card" id="position-4">
-                            <div class="stat-card-header">
-                                <span class="stat-card-title">Fourth Selection</span>
-                                <i class="fas fa-certificate"></i>
-                            </div>
-                            <div class="stat-card-value">0%</div>
-                            <div class="stat-card-subtitle">Strike Rate</div>
+                        <div class="chart-container">
+                            <canvas id="prizemoney-chart"></canvas>
                         </div>
                     </div>
-                    <div class="chart-container mt-2">
-                        <h4 class="chart-title">Position Performance Comparison</h4>
-                        <canvas id="position-chart"></canvas>
+                    <div class="analysis-section">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-fire section-icon"></i>
+                                Tipster Consensus Heatmap
+                            </h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="consensus-chart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
