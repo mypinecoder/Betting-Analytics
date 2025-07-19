@@ -352,8 +352,6 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 # Static Files
-
-# Static Files
 script_dir = os.path.dirname(__file__)
 frontend_dir = os.path.join(os.path.dirname(script_dir), "frontend")
 favicon_dir = os.path.join(os.path.dirname(script_dir), "favicon_io")
