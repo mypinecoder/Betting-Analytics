@@ -52,6 +52,10 @@
 
         <section id="dashboard" class="dashboard-section hidden">
             <div class="container">
+                <div class="dashboard-header">
+                    <h2 class="section-title"><i class="fas fa-th-large section-icon"></i> Dashboard</h2>
+                    <button id="download-pdf-btn" class="download-btn"><i class="fas fa-file-pdf"></i> Download Report</button>
+                </div>
                 <div id="kpi-section-container"></div>
                 <div id="tabs-container"></div>
                 <div id="tab-content-container"></div>
@@ -76,7 +80,6 @@
             </div>
             <div class="footer-bottom">
                 <p>&copy; 2025 Pinecoder.in. All rights reserved. <a href="support.html">Support</a></p>
-                <!-- <p><a href="support.html">Support</a></p> -->
             </div>
         </div>
     </footer>
@@ -85,6 +88,8 @@
     <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/responsive/2.4.0/js/dataTables.responsive.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
