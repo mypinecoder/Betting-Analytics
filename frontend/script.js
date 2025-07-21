@@ -164,6 +164,11 @@ function populateDashboard(data) {
         }
     }
 
+    // Tipster Analysis
+    const tipsterHasData = data.tipster_analysis && data.tipster_analysis.roi_summary && data.tipster_analysis.roi_summary.length > 0;
+    handleSection('tipster-analysis', tipsterHasData);
+    if (tipsterHasData) updateTipsterAnalysis(data.tipster_analysis);
+
     // Factor Analysis
     const factorHasData = data.factor_analysis && (
         (data.factor_analysis.top_jockeys && data.factor_analysis.top_jockeys.data && data.factor_analysis.top_jockeys.data.length > 0) ||
@@ -189,6 +194,90 @@ function populateDashboard(data) {
     handleSection('raw-data', rawHasData);
     if (rawHasData) updateRawDataTable(data.raw_data);
 }
+
+
+function updateTipsterAnalysis(analysis) {
+    // ROI Table
+    if (analysis.roi_summary) {
+        if (tableInstances.roiTable) {
+            tableInstances.roiTable.destroy();
+        }
+
+        tableInstances.roiTable = $('#roi-table').DataTable({
+            data: analysis.roi_summary,
+            columns: [
+                { data: 'Tipster' },
+                { data: 'Total Tips' },
+                { data: 'Winners' },
+                { 
+                    data: 'Strike Rate',
+                    render: (data) => data ? data.toFixed(2) + '%' : '0%'
+                },
+                { 
+                    data: 'Total Invested',
+                    render: (data) => '$' + data.toFixed(2)
+                },
+                { 
+                    data: 'Total Return',
+                    render: (data) => '$' + data.toFixed(2)
+                },
+                { 
+                    data: 'Profit/Loss',
+                    render: (data) => {
+                        const color = data >= 0 ? 'text-success' : 'text-danger';
+                        return `<span class="${color}">$${data.toFixed(2)}</span>`;
+                    }
+                },
+                { 
+                    data: 'ROI %',
+                    render: (data) => {
+                        const color = data >= 0 ? 'text-success' : 'text-danger';
+                        return `<span class="${color}">${data.toFixed(2)}%</span>`;
+                    }
+                },
+                { data: 'Note', defaultContent: '-' }
+            ],
+            order: [[7, 'desc']], // Sort by ROI
+            responsive: true,
+            pageLength: 25
+        });
+
+        // ROI Chart
+        const roiData = analysis.roi_summary.sort((a, b) => b['ROI %'] - a['ROI %']);
+        createChart('roi-chart', {
+            type: 'bar',
+            data: {
+                labels: roiData.map(d => d.Tipster),
+                datasets: [{
+                    label: 'ROI %',
+                    data: roiData.map(d => d['ROI %']),
+                    backgroundColor: roiData.map(d => d['ROI %'] >= 0 ? '#27ae60' : '#e74c3c')
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Tipster Return on Investment (ROI %)'
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'ROI %'
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
 
 // New: Render other analysis charts
 function updateOtherAnalysis(other) {
@@ -289,200 +378,6 @@ function updateKPIs(kpis) {
         kpis.total_prize_money ? `$${kpis.total_prize_money.toLocaleString()}` : '$0';
 }
 
-// Update tipster analysis
-function updateTipsterAnalysis(analysis) {
-    // ROI Table
-    if (analysis.roi_summary) {
-        if (tableInstances.roiTable) {
-            tableInstances.roiTable.destroy();
-        }
-
-        tableInstances.roiTable = $('#roi-table').DataTable({
-            data: analysis.roi_summary,
-            columns: [
-                { data: 'Tipster' },
-                { data: 'Total Tips' },
-                { data: 'Winners' },
-                { 
-                    data: 'Strike Rate',
-                    render: (data) => data ? data.toFixed(2) + '%' : '0%'
-                },
-                { 
-                    data: 'Total Invested',
-                    render: (data) => '$' + data
-                },
-                { 
-                    data: 'Total Return',
-                    render: (data) => '$' + data.toFixed(2)
-                },
-                { 
-                    data: 'Profit/Loss',
-                    render: (data) => {
-                        const color = data >= 0 ? 'text-success' : 'text-danger';
-                        return `<span class="${color}">$${data.toFixed(2)}</span>`;
-                    }
-                },
-                { 
-                    data: 'ROI %',
-                    render: (data) => {
-                        const color = data >= 0 ? 'text-success' : 'text-danger';
-                        return `<span class="${color}">${data.toFixed(2)}%</span>`;
-                    }
-                }
-            ],
-            order: [[7, 'desc']], // Sort by ROI
-            responsive: true
-        });
-
-        // Strike Rate Chart
-        const strikeRateData = analysis.roi_summary.sort((a, b) => b['Strike Rate'] - a['Strike Rate']).slice(0, 10);
-        createChart('strike-rate-chart', {
-            type: 'bar',
-            data: {
-                labels: strikeRateData.map(d => d.Tipster),
-                datasets: [{
-                    label: 'Strike Rate %',
-                    data: strikeRateData.map(d => d['Strike Rate']),
-                    backgroundColor: '#3498db'
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        max: 100
-                    }
-                }
-            }
-        });
-
-        // ROI Chart
-        const roiData = analysis.roi_summary.sort((a, b) => b['ROI %'] - a['ROI %']).slice(0, 20);;
-        createChart('roi-chart', {
-            type: 'bar',
-            data: {
-                labels: roiData.map(d => d.Tipster),
-                datasets: [{
-                    label: 'ROI %',
-                    data: roiData.map(d => d['ROI %']),
-                    backgroundColor: roiData.map(d => d['ROI %'] >= 0 ? '#27ae60' : '#e74c3c')
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                }
-            }
-        });
-    }
-}
-
-// Update market analysis
-function updateMarketAnalysis(analysis) {
-    // Market movement categories
-    if (analysis.movement_categories) {
-        const labels = Object.keys(analysis.movement_categories);
-        const data = Object.values(analysis.movement_categories);
-
-        createChart('market-movement-chart', {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: [
-                        '#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#e74c3c', '#9b59b6'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-    }
-
-    // Tipster movements
-    if (analysis.tipster_movements) {
-        const movementData = analysis.tipster_movements.sort((a, b) => Math.abs(b.mean) - Math.abs(a.mean)).slice(0, 20);;
-        
-        createChart('tipster-movement-chart', {
-            type: 'bar',
-            data: {
-                labels: movementData.map(d => d['Tip Website']),
-                datasets: [{
-                    label: 'Avg Price Movement %',
-                    data: movementData.map(d => d.mean),
-                    backgroundColor: movementData.map(d => d.mean > 0 ? '#e74c3c' : '#27ae60')
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                const value = context.parsed.x;
-                                return `${value > 0 ? 'Drifted' : 'Shortened'}: ${Math.abs(value).toFixed(2)}%`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    // Volume analysis
-    if (analysis.volume_by_tipster) {
-        createChart('volume-chart', {
-            type: 'bar',
-            data: {
-                labels: analysis.volume_by_tipster.labels,
-                datasets: [{
-                    label: 'Pre-Post Traded Volume ($)',
-                    data: analysis.volume_by_tipster.data,
-                    backgroundColor: '#f39c12'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: (value) => '$' + value.toLocaleString()
-                        }
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => '$' + context.parsed.y.toLocaleString()
-                        }
-                    }
-                }
-            }
-        });
-    }
-}
 
 // Update factor analysis
 function updateFactorAnalysis(analysis) {

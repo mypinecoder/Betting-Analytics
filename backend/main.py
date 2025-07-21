@@ -134,7 +134,8 @@ def clean_and_standardize_data(dataframes: Dict) -> Dict:
     return dataframes
 
 def calculate_roi(tips_df, win_prices_df):
-    """Calculate ROI for each tipster based on $1 level stakes"""
+    """Calculate ROI for each tipster based on $1 level stakes.
+       Handles cases where no price data is found."""
     roi_data = []
     
     for tipster in tips_df['Tip Website'].unique():
@@ -148,8 +149,26 @@ def calculate_roi(tips_df, win_prices_df):
             how='left'
         )
         
-        total_bets = len(merged)
-        wins = merged[merged['win_lose'] == 1]
+        # Filter for tips that successfully found a price record
+        valid_bets = merged.dropna(subset=['win_lose', 'bsp'])
+        total_bets = len(valid_bets)
+        
+        if total_bets == 0:
+            # If no tips could be matched with price data, we cannot calculate ROI.
+            roi_data.append({
+                'Tipster': tipster,
+                'Total Tips': len(tipster_tips), # Show total tips attempted
+                'Winners': 0,
+                'Strike Rate': 0,
+                'Total Invested': 0,
+                'Total Return': 0,
+                'Profit/Loss': 0,
+                'ROI %': 0,
+                'Note': 'No matching price data found for any tips.'
+            })
+            continue
+
+        wins = valid_bets[valid_bets['win_lose'] == 1]
         total_return = wins['bsp'].sum()
         profit = total_return - total_bets
         roi = (profit / total_bets * 100) if total_bets > 0 else 0
@@ -162,10 +181,12 @@ def calculate_roi(tips_df, win_prices_df):
             'Total Invested': total_bets,
             'Total Return': total_return,
             'Profit/Loss': profit,
-            'ROI %': roi
+            'ROI %': roi,
+            'Note': f'{len(tipster_tips) - total_bets} tips had no price data.'
         })
     
     return pd.DataFrame(roi_data)
+
 
 def analyze_by_position(tips_df, win_prices_df):
     """Analyze performance by selection position (1st, 2nd, 3rd, 4th)"""
@@ -217,6 +238,7 @@ def analyze_market_movements(merged_df):
 def perform_full_analysis(dataframes: Dict) -> Dict:
     """Performs a comprehensive analysis on the provided data."""
     response = {
+        "tipster_analysis": {}, # New section for Tipster ROI/POT
         "factor_analysis": {},
         "other_analysis": {},
         "raw_data": {}
@@ -225,6 +247,13 @@ def perform_full_analysis(dataframes: Dict) -> Dict:
     # Get base dataframes
     tips_df = dataframes.get('tips', pd.DataFrame())
     race_data_df = dataframes.get('race_data', pd.DataFrame())
+    win_prices_df = dataframes.get('win_prices', pd.DataFrame()) # Needed for ROI
+
+    # --- New Tipster Analysis Section ---
+    if not tips_df.empty and not win_prices_df.empty:
+        roi_df = calculate_roi(tips_df, win_prices_df)
+        response['tipster_analysis']['roi_summary'] = roi_df.to_dict(orient='records')
+
     merged_df = tips_df.copy()
     if not race_data_df.empty:
         merged_df = pd.merge(merged_df, race_data_df, on=['Track', 'Race', 'Horse Name'], how='left')
@@ -291,6 +320,7 @@ def perform_full_analysis(dataframes: Dict) -> Dict:
     # Raw data sample
     response['raw_data']['recent_tips'] = merged_df.head(100).to_dict(orient='records')
     return clean_for_json(response)
+
 
 @app.post("/analyze/")
 async def analyze_betting_files(files: List[UploadFile] = File(...)):
