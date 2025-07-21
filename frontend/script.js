@@ -3,10 +3,11 @@ let uploadedFiles = [];
 let chartInstances = {};
 let tableInstances = {};
 
-// Chart.js defaults
-Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-Chart.defaults.color = '#2c3e50';
+// Chart.js defaults for dark theme
+Chart.defaults.font.family = 'Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+Chart.defaults.color = '#e2e8f0'; // Main text color
 Chart.defaults.plugins.legend.position = 'top';
+Chart.defaults.plugins.legend.labels.color = '#e2e8f0';
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeUploadArea();
@@ -280,10 +281,23 @@ function renderChart(data, canvasId, type, options = {}) {
         options: {
             responsive: true, maintainAspectRatio: false,
             indexAxis: options.index_axis || 'x',
-            plugins: { title: { display: false }, legend: { display: type === 'pie' || options.is_grouped ? true : !!options.data_label } },
+            plugins: { 
+                title: { display: false }, 
+                legend: { 
+                    display: true // Always display legend as requested
+                }
+            },
             scales: {
-                x: { title: { display: !!options.x_label, text: options.x_label || '' } },
-                y: { title: { display: !!options.y_label, text: options.y_label || '' } }
+                x: { 
+                    title: { display: !!options.x_label, text: options.x_label || '', color: '#a0aec0' },
+                    ticks: { color: '#a0aec0' },
+                    grid: { color: '#4a5568' }
+                },
+                y: { 
+                    title: { display: !!options.y_label, text: options.y_label || '', color: '#a0aec0' },
+                    ticks: { color: '#a0aec0' },
+                    grid: { color: '#4a5568' }
+                }
             }
         }
     };
