@@ -6,134 +6,72 @@ let tableInstances = {};
 // Chart.js defaults
 Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 Chart.defaults.color = '#2c3e50';
+Chart.defaults.plugins.legend.position = 'top';
 
-// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     initializeUploadArea();
-    initializeTabs();
 });
 
-// Upload functionality
 function initializeUploadArea() {
     const uploadArea = document.getElementById('upload-area');
     const fileInput = document.getElementById('file-input');
     const analyzeBtn = document.getElementById('analyze-btn');
 
-    // Click to upload
     uploadArea.addEventListener('click', () => fileInput.click());
-
-    // Drag and drop
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('drag-over');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('drag-over');
-    });
-
+    uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('drag-over');
         handleFiles(e.dataTransfer.files);
     });
-
-    // File input change
-    fileInput.addEventListener('change', (e) => {
-        handleFiles(e.target.files);
-    });
-
-    // Analyze button
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     analyzeBtn.addEventListener('click', analyzeData);
 }
 
-// Handle file uploads
 function handleFiles(files) {
     const fileList = document.getElementById('file-list');
     const analyzeBtn = document.getElementById('analyze-btn');
 
-    // Add new files
     Array.from(files).forEach(file => {
-        if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
-            // Check if file already exists
-            if (!uploadedFiles.find(f => f.name === file.name)) {
-                uploadedFiles.push(file);
-            }
+        if ((file.type === 'text/csv' || file.name.endsWith('.csv')) && !uploadedFiles.find(f => f.name === file.name)) {
+            uploadedFiles.push(file);
         }
     });
 
-    // Update UI
     fileList.innerHTML = '';
     uploadedFiles.forEach((file, index) => {
         const fileItem = document.createElement('div');
         fileItem.className = 'file-item';
-        fileItem.innerHTML = `
-            <span><i class="fas fa-file-csv"></i> ${file.name}</span>
-            <button onclick="removeFile(${index})" style="background: none; border: none; color: #e74c3c; cursor: pointer;">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
+        fileItem.innerHTML = `<span><i class="fas fa-file-csv"></i> ${file.name}</span><button onclick="removeFile(${index})" style="background:none;border:none;color:#e74c3c;cursor:pointer;"><i class="fas fa-times"></i></button>`;
         fileList.appendChild(fileItem);
     });
 
-    // Enable/disable analyze button
     analyzeBtn.disabled = uploadedFiles.length === 0;
 }
 
-// Remove file from list
 function removeFile(index) {
     uploadedFiles.splice(index, 1);
     handleFiles([]);
 }
 
-// Tab functionality
-function initializeTabs() {
-    const tabs = document.querySelectorAll('.tab');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const targetTab = tab.getAttribute('data-tab');
-
-            // Update active states
-            tabs.forEach(t => t.classList.remove('active'));
-            tabContents.forEach(tc => tc.classList.remove('active'));
-
-            tab.classList.add('active');
-            document.getElementById(targetTab).classList.add('active');
-        });
-    });
-}
-
-// Analyze data
 async function analyzeData() {
     const spinner = document.getElementById('loading-spinner');
     const dashboard = document.getElementById('dashboard');
-
-    // Show spinner
     spinner.classList.remove('hidden');
 
-    // Prepare form data
     const formData = new FormData();
-    uploadedFiles.forEach(file => {
-        formData.append('files', file);
-    });
+    uploadedFiles.forEach(file => formData.append('files', file));
 
     try {
-        const response = await fetch('/analyze/', {
-            method: 'POST',
-            body: formData
-        });
-
+        const response = await fetch('/analyze/', { method: 'POST', body: formData });
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Analysis failed');
         }
-
         const data = await response.json();
         populateDashboard(data);
         dashboard.classList.remove('hidden');
-
     } catch (error) {
         console.error('Analysis error:', error);
         alert(`Analysis failed: ${error.message}`);
@@ -142,579 +80,226 @@ async function analyzeData() {
     }
 }
 
-// Populate dashboard with analysis results
 function populateDashboard(data) {
-    // Helper to show/hide and set 'No Data' message
-    function handleSection(sectionId, hasData, message = 'No Data Available') {
-        const section = document.getElementById(sectionId);
-        if (!section) return;
-        if (hasData) {
-            section.classList.remove('hidden');
-            const msg = section.querySelector('.no-data-msg');
-            if (msg) msg.remove();
-        } else {
-            section.classList.add('hidden');
-            if (!section.querySelector('.no-data-msg')) {
-                const msg = document.createElement('div');
-                msg.className = 'no-data-msg';
-                msg.style = 'color:#888;text-align:center;padding:2rem;';
-                msg.textContent = message;
-                section.appendChild(msg);
-            }
-        }
-    }
+    // Clear previous results
+    document.getElementById('kpi-section-container').innerHTML = '';
+    document.getElementById('tabs-container').innerHTML = '';
+    document.getElementById('tab-content-container').innerHTML = '';
+    
+    renderKPIs(data.kpis);
+    
+    const visualMapping = {
+        'Performance Overview': [
+            { type: 'table', key: 'tipster_roi', title: 'Tipster ROI Leaderboard', id: 'tipster-roi-table' },
+            { type: 'chart', key: 'tipster_strategy', title: 'Tipster Selection Strategy', id: 'tipster-strategy-chart' },
+            { type: 'chart', key: 'tipster_vs_market', title: 'Tipster Odds vs. Market (BSP)', id: 'tipster-vs-market-chart' },
+            { type: 'chart', key: 'best_odds_provider', title: 'Best Odds Provider', id: 'best-odds-provider-chart' }
+        ],
+        'Market Analysis': [
+            { type: 'chart', key: 'market_movers', title: 'Market Movers (Steamers vs. Drifters)', id: 'market-movers-chart' },
+            { type: 'chart', key: 'most_traded_races', title: 'Top 5 Most Traded Races', id: 'most-traded-races-chart' },
+            { type: 'table', key: 'most_traded_horses', title: 'Top 10 Most Traded Horses', id: 'most-traded-horses-table' }
+        ],
+        'Factor Analysis': [
+            { type: 'table', key: 'jockey_performance', title: 'Jockey Performance (Rides & Avg. Odds)', id: 'jockey-performance-table' },
+            { type: 'chart', key: 'top_jockeys_by_tips', title: 'Top Jockeys by Tip Frequency', id: 'jockey-tips-chart' },
+            { type: 'chart', key: 'barrier_performance', title: 'Barrier Performance (by Strike Rate)', id: 'barrier-performance-chart' },
+            { type: 'chart', key: 'odds_performance', title: 'Odds vs. Performance (Win Rate %)', id: 'odds-performance-chart' },
+            { type: 'chart', key: 'field_size_distribution', title: 'Field Size Distribution', id: 'fieldsize-chart' },
+            { type: 'chart', key: 'prize_money_distribution', title: 'Prize Money Distribution', id: 'prizemoney-chart' }
+        ],
+        'Raw Data': [
+            { type: 'table', key: 'recent_tips', title: 'Detailed Merged Data', id: 'raw-data-table' }
+        ]
+    };
 
-    // Tipster Analysis
-    const tipsterHasData = data.tipster_analysis && data.tipster_analysis.roi_summary && data.tipster_analysis.roi_summary.length > 0;
-    handleSection('tipster-analysis', tipsterHasData);
-    if (tipsterHasData) updateTipsterAnalysis(data.tipster_analysis);
+    const tabsContainer = document.getElementById('tabs-container');
+    const tabContentContainer = document.getElementById('tab-content-container');
+    const tabsWrapper = document.createElement('div');
+    tabsWrapper.className = 'tabs';
+    
+    let isFirstTab = true;
 
-    // Factor Analysis
-    const factorHasData = data.factor_analysis && (
-        (data.factor_analysis.top_jockeys && data.factor_analysis.top_jockeys.data && data.factor_analysis.top_jockeys.data.length > 0) ||
-        (data.factor_analysis.barrier_analysis && data.factor_analysis.barrier_analysis.length > 0) ||
-        (data.factor_analysis.distance_distribution && data.factor_analysis.distance_distribution.data && data.factor_analysis.distance_distribution.data.length > 0) ||
-        (data.factor_analysis.odds_distribution && data.factor_analysis.odds_distribution.data && data.factor_analysis.odds_distribution.data.length > 0)
-    );
-    handleSection('factor-analysis', factorHasData);
-    if (factorHasData) updateFactorAnalysis(data.factor_analysis);
-
-    // Other Analysis
-    const other = data.other_analysis || {};
-    const oddsHasData = other.odds_distribution && other.odds_distribution.data && other.odds_distribution.data.length > 0;
-    const fieldHasData = other.field_size_distribution && Object.keys(other.field_size_distribution).length > 0;
-    const prizeHasData = other.prize_money_distribution && Object.keys(other.prize_money_distribution).length > 0;
-    const consensusHasData = other.tipster_consensus && Object.keys(other.tipster_consensus).length > 0;
-    const otherHasData = oddsHasData || fieldHasData || prizeHasData || consensusHasData;
-    handleSection('other-analysis', otherHasData);
-    if (otherHasData) updateOtherAnalysis(other);
-
-    // Raw Data
-    const rawHasData = data.raw_data && data.raw_data.recent_tips && data.raw_data.recent_tips.length > 0;
-    handleSection('raw-data', rawHasData);
-    if (rawHasData) updateRawDataTable(data.raw_data);
-}
-
-
-function updateTipsterAnalysis(analysis) {
-    // ROI Table
-    if (analysis.roi_summary) {
-        if (tableInstances.roiTable) {
-            tableInstances.roiTable.destroy();
-        }
-
-        tableInstances.roiTable = $('#roi-table').DataTable({
-            data: analysis.roi_summary,
-            columns: [
-                { data: 'Tipster' },
-                { data: 'Total Tips' },
-                { data: 'Winners' },
-                { 
-                    data: 'Strike Rate',
-                    render: (data) => data ? data.toFixed(2) + '%' : '0%'
-                },
-                { 
-                    data: 'Total Invested',
-                    render: (data) => '$' + data.toFixed(2)
-                },
-                { 
-                    data: 'Total Return',
-                    render: (data) => '$' + data.toFixed(2)
-                },
-                { 
-                    data: 'Profit/Loss',
-                    render: (data) => {
-                        const color = data >= 0 ? 'text-success' : 'text-danger';
-                        return `<span class="${color}">$${data.toFixed(2)}</span>`;
-                    }
-                },
-                { 
-                    data: 'ROI %',
-                    render: (data) => {
-                        const color = data >= 0 ? 'text-success' : 'text-danger';
-                        return `<span class="${color}">${data.toFixed(2)}%</span>`;
-                    }
-                },
-                { data: 'Note', defaultContent: '-' }
-            ],
-            order: [[7, 'desc']], // Sort by ROI
-            responsive: true,
-            pageLength: 25
-        });
-
-        // ROI Chart
-        const roiData = analysis.roi_summary.sort((a, b) => b['ROI %'] - a['ROI %']);
-        createChart('roi-chart', {
-            type: 'bar',
-            data: {
-                labels: roiData.map(d => d.Tipster),
-                datasets: [{
-                    label: 'ROI %',
-                    data: roiData.map(d => d['ROI %']),
-                    backgroundColor: roiData.map(d => d['ROI %'] >= 0 ? '#27ae60' : '#e74c3c')
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    title: {
-                        display: true,
-                        text: 'Tipster Return on Investment (ROI %)'
-                    }
-                },
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'ROI %'
-                        }
-                    }
-                }
-            }
-        });
-    }
-}
-
-
-// New: Render other analysis charts
-function updateOtherAnalysis(other) {
-    // Odds Distribution
-    if (other.odds_distribution && other.odds_distribution.data && other.odds_distribution.data.length > 0) {
-        createChart('odds-chart-other', {
-            type: 'bar',
-            data: {
-                labels: other.odds_distribution.labels,
-                datasets: [{
-                    label: 'Number of Tips',
-                    data: other.odds_distribution.data,
-                    backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#e67e22', '#e74c3c']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-    // Field Size Distribution
-    if (other.field_size_distribution && Object.keys(other.field_size_distribution).length > 0) {
-        createChart('fieldsize-chart', {
-            type: 'bar',
-            data: {
-                labels: Object.keys(other.field_size_distribution),
-                datasets: [{
-                    label: 'Number of Races',
-                    data: Object.values(other.field_size_distribution),
-                    backgroundColor: '#3498db'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-    // Prize Money Distribution
-    if (other.prize_money_distribution && Object.keys(other.prize_money_distribution).length > 0) {
-        createChart('prizemoney-chart', {
-            type: 'pie',
-            data: {
-                labels: Object.keys(other.prize_money_distribution),
-                datasets: [{
-                    data: Object.values(other.prize_money_distribution),
-                    backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#e67e22', '#e74c3c']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'right' } }
-            }
-        });
-    }
-    // Tipster Consensus Heatmap (simple bar for now)
-    if (other.tipster_consensus && Object.keys(other.tipster_consensus).length > 0) {
-        // For demo: show top 10 horses with most tips (sum across tipsters)
-        const horseTotals = {};
-        for (const tipster in other.tipster_consensus) {
-            for (const horse in other.tipster_consensus[tipster]) {
-                horseTotals[horse] = (horseTotals[horse] || 0) + other.tipster_consensus[tipster][horse];
-            }
-        }
-        const sorted = Object.entries(horseTotals).sort((a, b) => b[1] - a[1]).slice(0, 10);
-        createChart('consensus-chart', {
-            type: 'bar',
-            data: {
-                labels: sorted.map(x => x[0]),
-                datasets: [{
-                    label: 'Total Tips',
-                    data: sorted.map(x => x[1]),
-                    backgroundColor: '#f39c12'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-    }
-}
-
-// Update KPIs
-function updateKPIs(kpis) {
-    document.getElementById('kpi-total-tips').textContent = kpis.total_tips || 0;
-    document.getElementById('kpi-tipsters').textContent = kpis.unique_tipsters || 0;
-    document.getElementById('kpi-races').textContent = kpis.unique_races || 0;
-    document.getElementById('kpi-tracks').textContent = kpis.unique_tracks || 0;
-    document.getElementById('kpi-field-size').textContent = 
-        kpis.avg_field_size ? kpis.avg_field_size.toFixed(1) : 0;
-    document.getElementById('kpi-prize-money').textContent = 
-        kpis.total_prize_money ? `$${kpis.total_prize_money.toLocaleString()}` : '$0';
-}
-
-
-// Update factor analysis
-function updateFactorAnalysis(analysis) {
-    // Jockey analysis
-    if (analysis.top_jockeys) {
-        createChart('jockey-chart', {
-            type: 'bar', // Change type to 'bar'
-            data: {
-                labels: analysis.top_jockeys.labels,
-                datasets: [{
-                    label: 'Number of Tips',
-                    data: analysis.top_jockeys.data,
-                    backgroundColor: '#3498db'
-                }]
-            },
-            options: {
-                indexAxis: 'y', // Add this line to make the bar chart horizontal
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-    // Barrier analysis
-    if (analysis.barrier_analysis) {
-        const barrierData = analysis.barrier_analysis.sort((a, b) => a.Barrier - b.Barrier);
-        createChart('barrier-chart', {
-            type: 'line',
-            data: {
-                labels: barrierData.map(d => `Barrier ${d.Barrier}`),
-                datasets: [{
-                    label: 'Tips Count',
-                    data: barrierData.map(d => d['Horse Name']),
-                    borderColor: '#3498db',
-                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                    tension: 0.3
-                }, {
-                    label: 'Winners',
-                    data: barrierData.map(d => d.win_lose || 0),
-                    borderColor: '#27ae60',
-                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-
-    // Distance distribution
-    if (analysis.distance_distribution) {
-        createChart('distance-chart', {
-            type: 'pie',
-            data: {
-                labels: analysis.distance_distribution.labels,
-                datasets: [{
-                    data: analysis.distance_distribution.data,
-                    backgroundColor: ['#3498db', '#2ecc71', '#f39c12', '#e74c3c']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right'
-                    }
-                }
-            }
-        });
-    }
-
-    // Odds distribution
-    if (analysis.odds_distribution) {
-        createChart('odds-chart-factor', {
-            type: 'bar',
-            data: {
-                labels: analysis.odds_distribution.labels,
-                datasets: [{
-                    label: 'Number of Tips',
-                    data: analysis.odds_distribution.data,
-                    backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#e67e22', '#e74c3c']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
-}
-
-// Update track analysis
-function updateTrackAnalysis(analysis) {
-    if (analysis && analysis.length > 0) {
-        if (tableInstances.trackTable) {
-            tableInstances.trackTable.destroy();
-        }
-
-        tableInstances.trackTable = $('#track-table').DataTable({
-            data: analysis,
-            columns: [
-                { data: 'Track' },
-                { data: 'Total Tips' },
-                { data: 'Winners' },
-                { 
-                    data: 'Strike Rate',
-                    render: (data) => data ? data.toFixed(2) + '%' : '0%'
-                }
-            ],
-            order: [[3, 'desc']],
-            responsive: true
-        });
-    }
-}
-
-// Update time analysis
-function updateTimeAnalysis(analysis) {
-    if (analysis.hourly) {
-        const hourlyData = analysis.hourly.sort((a, b) => a.Hour - b.Hour);
+    for (const tabName in visualMapping) {
+        const visuals = visualMapping[tabName];
+        let hasDataForTab = false;
         
-        createChart('hourly-chart', {
-            type: 'line',
-            data: {
-                labels: hourlyData.map(d => `${d.Hour}:00`),
-                datasets: [{
-                    label: 'Total Tips',
-                    data: hourlyData.map(d => d['Total Tips']),
-                    borderColor: '#3498db',
-                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                    yAxisID: 'y',
-                    tension: 0.3
-                }, {
-                    label: 'Winners',
-                    data: hourlyData.map(d => d.Winners),
-                    borderColor: '#27ae60',
-                    backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                    yAxisID: 'y1',
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Total Tips'
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Winners'
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        }
-                    }
-                }
+        for (const visual of visuals) {
+            const dataSet = visual.type === 'chart' ? data.charts[visual.key] : data.tables[visual.key] || (visual.key === 'recent_tips' ? data.raw_data[visual.key] : null);
+            if (dataSet && (Array.isArray(dataSet) ? dataSet.length > 0 : Object.keys(dataSet).length > 0)) {
+                hasDataForTab = true;
+                break;
             }
-        });
-    }
-}
-
-// Update position analysis
-function updatePositionAnalysis(analysis) {
-    if (analysis && analysis.length > 0) {
-        // Update stat cards
-        analysis.forEach((pos, index) => {
-            const card = document.getElementById(`position-${index + 1}`);
-            if (card) {
-                card.querySelector('.stat-card-value').textContent = 
-                    pos['Strike Rate'] ? pos['Strike Rate'].toFixed(2) + '%' : '0%';
-            }
-        });
-
-        // Create comparison chart
-        createChart('position-chart', {
-            type: 'bar',
-            data: {
-                labels: analysis.map(d => d.Position),
-                datasets: [{
-                    label: 'Strike Rate %',
-                    data: analysis.map(d => d['Strike Rate']),
-                    backgroundColor: ['#f39c12', '#3498db', '#cd7f32', '#95a5a6']
-                }, {
-                    label: 'Avg Win Odds',
-                    data: analysis.map(d => d['Avg Win Odds']),
-                    backgroundColor: ['rgba(243, 156, 18, 0.5)', 'rgba(52, 152, 219, 0.5)', 
-                                     'rgba(205, 127, 50, 0.5)', 'rgba(149, 165, 166, 0.5)'],
-                    yAxisID: 'y1'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Strike Rate %'
-                        }
-                    },
-                    y1: {
-                        beginAtZero: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Avg Win Odds'
-                        },
-                        grid: {
-                            drawOnChartArea: false
-                        }
-                    }
-                }
-            }
-        });
-    }
-}
-
-// Update raw data table
-function updateRawDataTable(rawData) {
-    if (rawData.recent_tips && rawData.recent_tips.length > 0) {
-        if (tableInstances.rawDataTable) {
-            tableInstances.rawDataTable.destroy();
         }
+        
+        if (hasDataForTab) {
+            const tabId = tabName.toLowerCase().replace(/\s+/g, '-');
+            
+            const tabButton = document.createElement('button');
+            tabButton.className = `tab ${isFirstTab ? 'active' : ''}`;
+            tabButton.dataset.tab = tabId;
+            tabButton.innerHTML = tabName;
+            tabsWrapper.appendChild(tabButton);
 
-        tableInstances.rawDataTable = $('#raw-data-table').DataTable({
-            data: rawData.recent_tips,
-            columns: [
-                { data: 'Tip Website', defaultContent: '-' },
-                { data: 'Track', defaultContent: '-' },
-                { data: 'Race', defaultContent: '-' },
-                { data: 'Selection Position', defaultContent: '-' },
-                { data: 'Horse Name', defaultContent: '-' },
-                { data: 'JockeyName', defaultContent: '-' },
-                { data: 'Barrier', defaultContent: '-' },
-                { 
-                    data: 'BestOdds', 
-                    defaultContent: '-',
-                    render: (data) => data ? data.toFixed(2) : '-'
-                },
-                { 
-                    data: 'bsp', 
-                    defaultContent: '-',
-                    render: (data) => data ? data.toFixed(2) : '-'
-                },
-                { 
-                    data: 'win_lose', 
-                    defaultContent: '-',
-                    render: (data) => {
-                        if (data === 1) return '<span class="text-success">WIN</span>';
-                        if (data === 0) return '<span class="text-danger">LOSE</span>';
-                        return '-';
-                    }
+            const tabContent = document.createElement('div');
+            tabContent.id = tabId;
+            tabContent.className = `tab-content ${isFirstTab ? 'active' : ''}`;
+            
+            visuals.forEach(visual => {
+                const dataSet = visual.type === 'chart' ? data.charts[visual.key] : data.tables[visual.key] || (visual.key === 'recent_tips' ? data.raw_data[visual.key] : null);
+                if (dataSet && (Array.isArray(dataSet) ? dataSet.length > 0 : Object.keys(dataSet).length > 0)) {
+                    tabContent.appendChild(createVisualContainer(visual.type, visual.id, visual.title));
                 }
-            ],
-            pageLength: 25,
-            responsive: true,
-            order: [[0, 'asc'], [1, 'asc'], [2, 'asc']]
+            });
+            tabContentContainer.appendChild(tabContent);
+            isFirstTab = false;
+        }
+    }
+    
+    tabsContainer.appendChild(tabsWrapper);
+    initializeTabs();
+    renderAllVisuals(data);
+}
+
+function initializeTabs() {
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    if (!tabs.length) return;
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.tab;
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(tc => tc.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(targetTab).classList.add('active');
         });
-    }
-}
-
-// Helper function to create/update charts
-function createChart(canvasId, config) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-
-    // Destroy existing chart
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
-
-    // Create new chart
-    const ctx = canvas.getContext('2d');
-    chartInstances[canvasId] = new Chart(ctx, config);
-}
-
-// Export data functionality (optional)
-function exportToCSV(data, filename) {
-    const csv = convertToCSV(data);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    window.URL.revokeObjectURL(url);
-}
-
-function convertToCSV(data) {
-    if (!data || data.length === 0) return '';
-    
-    const headers = Object.keys(data[0]);
-    const csvHeaders = headers.join(',');
-    
-    const csvRows = data.map(row => {
-        return headers.map(header => {
-            const value = row[header];
-            return typeof value === 'string' && value.includes(',') 
-                ? `"${value}"` 
-                : value;
-        }).join(',');
     });
+}
+
+function createVisualContainer(type, id, title) {
+    const section = document.createElement('div');
+    section.className = 'analysis-section';
+    section.innerHTML = `
+        <div class="section-header">
+            <h3 class="section-title"><i class="section-icon fas fa-chart-bar"></i> ${title}</h3>
+        </div>
+        ${type === 'chart' ? `<div class="chart-container"><canvas id="${id}"></canvas></div>` : ''}
+        ${type === 'table' ? `<div class="table-container"><table id="${id}" class="display"></table></div>` : ''}
+    `;
+    return section;
+}
+
+function renderAllVisuals(data) {
+    // Charts
+    renderChart(data.charts.tipster_strategy, 'tipster-strategy-chart', 'bar', { index_axis: 'y', data_label: 'Average Tipped Odds', x_label: 'Average BestOdds', single_color: '#f39c12' });
+    renderChart(data.charts.tipster_vs_market, 'tipster-vs-market-chart', 'bar', { data_label: 'Average Odds', x_label: 'Tipster', is_grouped: true });
+    renderChart(data.charts.best_odds_provider, 'best-odds-provider-chart', 'pie', { multi_color: true });
+    renderChart(data.charts.market_movers, 'market-movers-chart', 'bar', { data_label: '% Change (Morning to BSP)', x_label: 'Percentage Change', colors: (d) => d.map(v => v > 0 ? '#e74c3c' : '#27ae60') });
+    renderChart(data.charts.most_traded_races, 'most-traded-races-chart', 'bar', { index_axis: 'y', data_label: 'Traded Volume ($)', x_label: 'Volume ($)', single_color: '#3498db' });
+    renderChart(data.charts.top_jockeys_by_tips, 'jockey-tips-chart', 'bar', { index_axis: 'y', data_label: '# of Tips', single_color: '#3498db' });
+    renderChart(data.charts.barrier_performance, 'barrier-performance-chart', 'bar', { data_label: 'Strike Rate %', x_label: 'Barrier Number', single_color: '#9b59b6' });
+    renderChart(data.charts.odds_performance, 'odds-performance-chart', 'bar', { data_label: 'Win Rate %', x_label: 'Odds Bracket', single_color: '#e67e22' });
+    renderChart(data.charts.field_size_distribution, 'fieldsize-chart', 'bar', { data_label: '# of Races', single_color: '#1abc9c' });
+    renderChart(data.charts.prize_money_distribution, 'prizemoney-chart', 'pie', { multi_color: true });
     
-    return [csvHeaders, ...csvRows].join('\n');
+    // Tables
+    renderTable('tipster-roi-table', data.tables.tipster_roi, [
+        { data: 'Tipster', title: 'Tipster' }, { data: 'Total Tips', title: 'Total Tips' }, { data: 'Winners', title: 'Winners' },
+        { data: 'Strike Rate', title: 'Strike Rate (%)', render: (d) => d ? d.toFixed(2) : '0.00' },
+        { data: 'Profit/Loss', title: 'P/L ($)', render: (d) => d ? `$${d.toFixed(2)}` : '$0.00' },
+        { data: 'ROI', title: 'ROI (%)', render: (d) => d ? d.toFixed(2) : '0.00' }
+    ], { pageLength: 10, order: [[5, 'desc']] });
+    renderTable('most-traded-horses-table', data.tables.most_traded_horses, [
+        { data: 'Horse Name', title: 'Horse Name' }, { data: 'event_name', title: 'Race' },
+        { data: 'pptradedvol', title: 'Traded Volume', render: (d) => d ? `$${d.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}` : '-' }
+    ], { pageLength: 5, searching: false, lengthChange: false, info: false, order: [[2, 'desc']] });
+    renderTable('jockey-performance-table', data.tables.jockey_performance, [
+        { data: 'JockeyName', title: 'Jockey Name' }, { data: 'num_rides', title: 'Rides' }, { data: 'avg_odds', title: 'Average Odds', render: (d) => d ? d.toFixed(2) : '-' }
+    ], { pageLength: 10, order: [[1, 'desc']] });
+    renderTable('raw-data-table', data.raw_data.recent_tips, [
+        { data: 'Tipster', title: 'Tipster' }, { data: 'Track', title: 'Track' }, { data: 'Race', title: 'Race' }, { data: 'Position', title: 'Pos' },
+        { data: 'Horse', title: 'Horse' }, { data: 'Jockey', title: 'Jockey' }, { data: 'Barrier', title: 'Barrier' },
+        { data: 'Best Odds', title: 'Best Odds', render: (d) => d ? d.toFixed(2) : '-' },
+        { data: 'BSP', title: 'BSP', render: (d) => d ? d.toFixed(2) : '-' },
+        { data: 'Result', title: 'Result', render: (d) => d === 1 ? 'Win' : (d === 0 ? 'Loss' : '-') }
+    ], { pageLength: 25, order: [[1, 'asc'], [2, 'asc']] });
+}
+
+function renderKPIs(kpis) {
+    const kpiContainer = document.getElementById('kpi-section-container');
+    if (!kpis || Object.keys(kpis).length === 0) return;
+
+    const kpiSection = document.createElement('div');
+    kpiSection.className = 'analysis-section';
+    kpiSection.innerHTML = `<div class="section-header"><h3 class="section-title"><i class="fas fa-tachometer-alt section-icon"></i>Key Performance Indicators</h3></div><div id="kpi-grid" class="kpi-grid"></div>`;
+    kpiContainer.appendChild(kpiSection);
+
+    const kpiGrid = document.getElementById('kpi-grid');
+    const kpiMapping = {
+        total_tips: { label: 'Total Tips', icon: 'fas fa-list-ol' },
+        total_tipsters: { label: 'Unique Tipsters', icon: 'fas fa-user-secret' },
+        total_races: { label: 'Total Races', icon: 'fas fa-flag-checkered' },
+        total_tracks: { label: 'Unique Tracks', icon: 'fas fa-map-marker-alt' },
+        total_traded_volume: { label: 'Total Traded Volume', icon: 'fas fa-dollar-sign', format: 'currency' }
+    };
+
+    for (const [key, value] of Object.entries(kpis)) {
+        if (value === null || value === undefined) continue;
+        const config = kpiMapping[key];
+        if (!config) continue;
+
+        let formattedValue = value.toLocaleString();
+        if (config.format === 'currency') formattedValue = `$${(value/1000000).toFixed(2)}M`;
+
+        const card = document.createElement('div');
+        card.className = 'kpi-card';
+        card.innerHTML = `<div class="kpi-label"><i class="${config.icon}"></i> ${config.label}</div><div class="kpi-value">${formattedValue}</div>`;
+        kpiGrid.appendChild(card);
+    }
+}
+
+function renderChart(data, canvasId, type, options = {}) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !data || (!data.labels && !data.datasets)) return;
+
+    const colorPalette = ['#3498db', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#1abc9c', '#e67e22'];
+    let datasets;
+    if (options.is_grouped && data.datasets) {
+        datasets = data.datasets.map((ds, i) => ({ ...ds, backgroundColor: colorPalette[i % colorPalette.length] }));
+    } else {
+        let backgroundColors = options.single_color || colorPalette[0];
+        if (options.colors) backgroundColors = options.colors(data.data);
+        else if (options.multi_color) backgroundColors = colorPalette;
+        datasets = [{ label: options.data_label || '', data: data.data, backgroundColor: backgroundColors }];
+    }
+
+    const config = {
+        type: type,
+        data: { labels: data.labels, datasets: datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            indexAxis: options.index_axis || 'x',
+            plugins: { title: { display: false }, legend: { display: type === 'pie' || options.is_grouped ? true : !!options.data_label } },
+            scales: {
+                x: { title: { display: !!options.x_label, text: options.x_label || '' } },
+                y: { title: { display: !!options.y_label, text: options.y_label || '' } }
+            }
+        }
+    };
+    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+    chartInstances[canvasId] = new Chart(canvas.getContext('2d'), config);
+}
+
+function renderTable(tableId, data, columns, options = {}) {
+    const table = document.getElementById(tableId);
+    if (!table || !data || data.length === 0) return;
+    
+    if (tableInstances[tableId]) tableInstances[tableId].destroy();
+    tableInstances[tableId] = $(`#${tableId}`).DataTable({
+        data: data,
+        columns: columns,
+        responsive: true,
+        ...options
+    });
 }
