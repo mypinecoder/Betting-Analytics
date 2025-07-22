@@ -203,8 +203,8 @@ async function generateEnhancedPDF() {
                     const pngImage = await pdfDoc.embedPng(imgData);
                     const pngDims = pngImage.scale(0.35);
                     addPageIfNeeded(pngDims.height + 20);
-                    page.drawImage(pngImage, { x: 50, y: yPos - pngDims.height, width: pngDims.width, height: pngDims.height });
-                    yPos -= pngDims.height + 20;
+                    // page.drawImage(pngImage, { x: 50, y: yPos - pngDims.height, width: pngDims.width, height: pngDims.height });
+                    // yPos -= pngDims.height + 20;
                 }
             } else if (analysisData.tables[key]) {
                  // Simple table drawing logic can be added here if needed
