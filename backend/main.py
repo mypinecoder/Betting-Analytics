@@ -3,6 +3,7 @@ import numpy as np
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from typing import List, Dict
 import io
 import re
@@ -372,6 +373,11 @@ async def health_check():
 # --- Static Files ---
 script_dir = os.path.dirname(__file__)
 frontend_dir = os.path.join(os.path.dirname(script_dir), "frontend")
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse(os.path.join(frontend_dir, 'favicon_io/favicon.ico'))
+
 if os.path.exists(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 else:
