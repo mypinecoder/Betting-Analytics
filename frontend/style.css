@@ -380,16 +380,3 @@ footer {
 .footer-bottom p {
     margin: 0;
 }
-
-.footer-bottom a {
-    color: var(--text-color);
-    text-decoration: none;
-    margin-left: 1rem;
-    font-weight: 600;
-    transition: color 0.3s ease;
-}
-
-.footer-bottom a:hover {
-    color: var(--primary-color);
-    text-decoration: underline;
-}
