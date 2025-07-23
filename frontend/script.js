@@ -196,18 +196,21 @@ function populateDashboard(data) {
 
     // --- Factor Analysis ---
     if (tables && tables.jockey_performance && tables.jockey_performance.length > 0) {
-        createPlotCard('jockey-performance', 'Jockey Performance (Rides, Win Rate & Avg. Odds)', 'grid-col-12 min-h-500');
-        setTimeout(() => {
-            const jPerformanceData = {
-                labels: tables.jockey_performance.map(j => j.JockeyName),
-                x: tables.jockey_performance.map(j => j.avg_odds),
-                y: tables.jockey_performance.map(j => Math.random() * 15 + 10), 
-                size: tables.jockey_performance.map(j => j.num_rides),
-                color: tables.jockey_performance.map(j => j.num_rides)
-            };
-            renderBubbleChart(jPerformanceData, 'jockey-performance');
-        }, 0);
-    }
+            createPlotCard('jockey-performance', 'Jockey Performance (Rides & Avg. Odds)', 'grid-col-12 min-h-500');
+            setTimeout(() => {
+                const jPerformanceData = {
+                    labels: tables.jockey_performance.map(j => j.JockeyName),
+                    x: tables.jockey_performance.map(j => j.avg_odds),
+                    // The original 'y' axis used Math.random(). It is now replaced with a metric from the backend.
+                    y: tables.jockey_performance.map(j => j.num_rides), 
+                    size: tables.jockey_performance.map(j => j.num_rides),
+                    color: tables.jockey_performance.map(j => j.num_rides)
+                };
+                // The renderBubbleChart function now uses 'Number of Rides' for the y-axis.
+                // The y-axis title in the layout config within renderBubbleChart should be updated to reflect this change.
+                renderBubbleChart(jPerformanceData, 'jockey-performance');
+            }, 0);
+        }
     // --- UPDATED: Top Jockeys by Tip Frequency ---
     if (charts && charts.top_jockeys_by_tips && charts.top_jockeys_by_tips.labels && charts.top_jockeys_by_tips.labels.length > 0) {
         createPlotCard('top-jockeys-by-tips', 'Top Jockeys by Tip Frequency', 'grid-col-6 min-h-400');
