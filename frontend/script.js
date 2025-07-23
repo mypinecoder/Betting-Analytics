@@ -3,25 +3,25 @@ let uploadedFiles = [];
 let analysisData = null; 
 
 // Palettes and Scales for vibrant charts
-const VIBRANT_CATEGORICAL_PALETTE = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'];
-const VIBRANT_SEQUENTIAL_SCALE = 'Plasma';
+const VIBRANT_CATEGORICAL_PALETTE = ['#2ECC71', '#F1C40F', '#3498DB', '#E74C3C', '#9B59B6', '#34495E', '#1ABC9C', '#E67E22', '#BDC3C7', '#27AE60'];
+const VIBRANT_SEQUENTIAL_SCALE = 'Viridis';
 
 // Plotly default layout settings for a consistent theme
 const plotlyLayoutConfig = {
     font: {
         family: 'Poppins, sans-serif',
-        color: '#333A49'
+        color: '#E2E8F0'
     },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
     margin: { l: 60, r: 40, b: 50, t: 50 },
     xaxis: {
-        gridcolor: '#E2E8F0',
-        zerolinecolor: '#E2E8F0'
+        gridcolor: '#4A5568',
+        zerolinecolor: '#4A5568'
     },
     yaxis: {
-        gridcolor: '#E2E8F0',
-        zerolinecolor: '#E2E8F0'
+        gridcolor: '#4A5568',
+        zerolinecolor: '#4A5568'
     },
     legend: {
         orientation: 'h',
@@ -189,10 +189,25 @@ function populateDashboard(data) {
             renderBubbleChart(jPerformanceData, 'jockey-performance');
         }, 0);
     }
+    // --- UPDATED: Top Jockeys by Tip Frequency ---
     if (charts && charts.top_jockeys_by_tips && charts.top_jockeys_by_tips.labels && charts.top_jockeys_by_tips.labels.length > 0) {
         createPlotCard('top-jockeys-by-tips', 'Top Jockeys by Tip Frequency', 'grid-col-6 min-h-400');
         setTimeout(() => {
-            renderLollipopChart(charts.top_jockeys_by_tips, 'top-jockeys-by-tips', { xaxis: { title: '# of Tips' } });
+            // Sort data ascending so the top jockey appears at the top of the horizontal bar chart
+            const sortedData = charts.top_jockeys_by_tips.labels
+                .map((label, i) => ({ label, value: charts.top_jockeys_by_tips.data[i] }))
+                .sort((a, b) => a.value - b.value);
+
+            const chartData = {
+                labels: sortedData.map(d => d.label),
+                data: sortedData.map(d => d.value)
+            };
+            renderBarChart(chartData, 'top-jockeys-by-tips', { 
+                xaxis: { title: '# of Tips' }, 
+                yaxis: { automargin: true },
+                index_axis: 'y',
+                color: '#2ECC71'
+            });
         }, 0);
     }
     if (charts && charts.tips_by_track && charts.tips_by_track.labels && charts.tips_by_track.labels.length > 0) {
@@ -201,10 +216,15 @@ function populateDashboard(data) {
             renderPieChart(charts.tips_by_track, 'tips-by-track', {hole: 0.5, showlegend: true});
         }, 0);
     }
+    // --- UPDATED: Average Prize Money by Track ---
     if (charts && charts.avg_prize_by_track && charts.avg_prize_by_track.labels && charts.avg_prize_by_track.labels.length > 0) {
         createPlotCard('avg-prize-by-track', 'Average Prize Money by Track', 'grid-col-8 min-h-500');
         setTimeout(() => {
-            renderRadialBarChart(charts.avg_prize_by_track, 'avg-prize-by-track');
+            // Data is already sorted descending from the backend, perfect for a bar chart
+            renderBarChart(charts.avg_prize_by_track, 'avg-prize-by-track', { 
+                yaxis: { title: 'Average Prize Money ($)' },
+                color: VIBRANT_CATEGORICAL_PALETTE // Use a color palette for visual distinction
+            });
         }, 0);
     }
      if (charts && charts.prize_money_distribution && charts.prize_money_distribution.labels && charts.prize_money_distribution.labels.length > 0) {
@@ -280,7 +300,7 @@ function renderBarChart(data, elementId, options = {}) {
         type: 'bar',
         orientation: options.index_axis || 'v',
         marker: { 
-            color: options.color || '#4A90E2',
+            color: options.color || '#2ECC71',
             line: { color: 'rgba(0,0,0,0.1)', width: 1 }
         }
     }];
@@ -343,8 +363,8 @@ function renderAreaChart(data, elementId, options = {}) {
         type: 'scatter',
         mode: 'lines',
         fill: 'tozeroy',
-        fillcolor: 'rgba(74, 144, 226, 0.2)',
-        line: { color: 'rgba(74, 144, 226, 1)', width: 2 }
+        fillcolor: 'rgba(46, 204, 113, 0.2)',
+        line: { color: 'rgba(46, 204, 113, 1)', width: 2 }
     }];
     const layout = { ...plotlyLayoutConfig, ...options, title: '' };
     Plotly.newPlot(elementId, plotData, layout, {responsive: true});
@@ -372,7 +392,7 @@ function renderLollipopChart(data, elementId, options = {}) {
         x1: d.value,
         y1: d.label,
         line: {
-            color: 'rgba(0,0,0,0.2)',
+            color: 'rgba(255,255,255,0.2)',
             width: 2
         }
     }));
@@ -420,10 +440,10 @@ function renderRadialBarChart(data, elementId) {
             radialaxis: {
                 showticklabels: false,
                 ticks: '',
-                gridcolor: 'rgba(0,0,0,0.1)'
+                gridcolor: 'rgba(255,255,255,0.2)'
             },
             angularaxis: {
-                gridcolor: 'rgba(0,0,0,0.1)'
+                gridcolor: 'rgba(255,255,255,0.2)'
             }
         }
     };

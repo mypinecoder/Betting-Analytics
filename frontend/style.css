@@ -1,16 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
 :root {
-    --primary-color: #4A90E2;
-    --secondary-color: #50E3C2;
-    --background-color: #F4F7FC;
-    --card-bg-color: #FFFFFF;
-    --text-primary-color: #333A49;
-    --text-secondary-color: #7B8497;
-    --border-color: #E2E8F0;
-    --shadow-color: rgba(0, 0, 0, 0.05);
-    --danger-color: #E74C3C;
-    --success-color: #2ECC71;
+    --primary-color: #2ECC71; /* A vibrant green for success and positive trends */
+    --secondary-color: #F1C40F; /* A gold accent for highlights and value */
+    --background-color: #1A202C; /* A very dark, near-black blue */
+    --card-bg-color: #2D3748; /* A slightly lighter dark blue-grey for cards */
+    --text-primary-color: #E2E8F0; /* A light grey for primary text */
+    --text-secondary-color: #A0AEC0; /* A dimmer grey for secondary text */
+    --border-color: #4A5568; /* A subtle grey for borders */
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --danger-color: #E53E3E;
+    --success-color: var(--primary-color);
 }
 
 * {
@@ -37,7 +37,7 @@ header {
     background-color: var(--card-bg-color);
     padding: 1rem 0;
     border-bottom: 1px solid var(--border-color);
-    box-shadow: 0 2px 4px var(--shadow-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 nav {
@@ -69,7 +69,7 @@ nav {
 }
 
 .support-link:hover {
-    color: var(--primary-color);
+    color: var(--secondary-color);
 }
 
 
@@ -110,7 +110,7 @@ nav {
 
 .upload-area:hover, .upload-area.drag-over {
     border-color: var(--primary-color);
-    background-color: #f8faff;
+    background-color: #354154;
 }
 
 .upload-icon {
@@ -149,12 +149,12 @@ nav {
 }
 
 .analyze-btn:hover:not(:disabled) {
-    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
+    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
     transform: translateY(-2px);
 }
 
 .analyze-btn:disabled {
-    background: #bdc3c7;
+    background: #4A5568;
     cursor: not-allowed;
 }
 
@@ -187,7 +187,7 @@ nav {
 }
 
 .download-btn:hover {
-    background-color: #3a7bc8;
+    background-color: #25a25a;
     transform: translateY(-2px);
 }
 
@@ -204,13 +204,13 @@ nav {
     padding: 1.5rem;
     border-radius: 12px;
     box-shadow: 0 4px 15px var(--shadow-color);
-    border-top: 4px solid var(--primary-color);
+    border-top: 4px solid var(--secondary-color);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .kpi-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
 .kpi-card .kpi-label {
@@ -225,7 +225,7 @@ nav {
     width: 20px;
     text-align: center;
     margin-right: 0.5rem;
-    color: var(--primary-color);
+    color: var(--secondary-color);
 }
 
 .kpi-card .kpi-value {
@@ -251,7 +251,7 @@ nav {
 
 .plot-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
 /* Specific grid placements */
@@ -286,7 +286,7 @@ footer {
 .spinner-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(26, 32, 44, 0.8);
     display: flex;
     flex-direction: column;
     justify-content: center;
