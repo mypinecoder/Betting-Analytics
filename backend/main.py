@@ -373,6 +373,11 @@ script_dir = os.path.dirname(__file__)
 frontend_dir = os.path.join(os.path.dirname(script_dir), "frontend")
 
 if os.path.exists(frontend_dir):
+    # Add a specific route for favicon
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        return FileResponse(os.path.join(frontend_dir, 'favicon_io', 'favicon.ico'))
+        
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
     
     @app.get("/", response_class=FileResponse)
@@ -384,10 +389,7 @@ if os.path.exists(frontend_dir):
         file_path = os.path.join(frontend_dir, path)
         if os.path.exists(file_path):
             return FileResponse(file_path)
-        raise HTTPException(status_code=404, detail="Not Found")
-else:
-    logger.error(f"Frontend directory not found at: {frontend_dir}")
-
+            
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
