@@ -3,432 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Support - Betting Data Analysis Tool | Pinecoder.in</title>
+    <title>Support Certificate - Betting Data Analysis Tool</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        /* Color Scheme - Matching main app */
-        :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --success-color: #27ae60;
-            --danger-color: #e74c3c;
-            --warning-color: #f39c12;
-            --light-bg: #ecf0f1;
-            --card-bg: #ffffff;
-            --text-primary: #2c3e50;
-            --text-secondary: #7f8c8d;
-            --border-color: #bdc3c7;
-        }
-
-        /* Global Styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--light-bg);
-            color: var(--text-primary);
-            line-height: 1.6;
-        }
-
-        /* Header */
-        header {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            padding: 2rem 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header-content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 2rem;
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
-        }
-
-        .subtitle {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        /* Main Container */
-        main {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-
-        /* Support Hero Section */
-        .support-hero {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 3rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .support-hero h2 {
-            color: var(--primary-color);
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-
-        .support-hero p {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
-
-        /* Project Details Section */
-        .project-details {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-
-        .section-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--light-bg);
-        }
-
-        .section-title {
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .section-icon {
-            color: var(--secondary-color);
-        }
-
-        /* Info Grid */
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .info-card {
-            background: var(--light-bg);
-            border-radius: 8px;
-            padding: 1.5rem;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .info-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .info-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.5rem;
-        }
-
-        .info-value {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--secondary-color);
-        }
-
-        /* Support Cards Grid */
-        .support-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .support-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .support-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 12px rgba(0,0,0,0.15);
-        }
-
-        .card-icon {
-            font-size: 3rem;
-            color: var(--secondary-color);
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-
-        .card-title {
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-
-        .card-content {
-            color: var(--text-primary);
-            line-height: 1.8;
-        }
-
-        .card-content p {
-            margin-bottom: 0.5rem;
-        }
-
-        .highlight {
-            color: var(--secondary-color);
-            font-weight: 600;
-        }
-
-        .success-text {
-            color: var(--success-color);
-            font-weight: 600;
-        }
-
-        /* Contact Section */
-        .contact-section {
-            background: var(--card-bg);
-            border-radius: 12px;
-            padding: 3rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            text-align: center;
-            margin-top: 2rem;
-        }
-
-        .contact-section h3 {
-            color: var(--primary-color);
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-
-        .contact-section p {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
-        }
-
-        .contact-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--secondary-color);
-            color: white;
-            text-decoration: none;
-            padding: 1rem 2rem;
-            border-radius: 6px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .contact-button:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-        }
-
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 2rem 0;
-            margin-top: 4rem;
-            border-top: 1px solid var(--border-color);
-            color: var(--text-secondary);
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            main {
-                padding: 0 1rem;
-            }
-
-            .support-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .info-grid {
-                grid-template-columns: 1fr;
-            }
-
-            h1 {
-                font-size: 2rem;
-            }
-
-            .support-hero {
-                padding: 2rem;
-            }
-        }
-
-        /* Utility Classes */
-        .text-center {
-            text-align: center;
-        }
-
-        .mt-2 {
-            margin-top: 2rem;
-        }
-
-        .mb-2 {
-            margin-bottom: 2rem;
-        }
-    </style>
+    <link rel="stylesheet" href="support-style.css">
 </head>
 <body>
-    <header>
-        <div class="header-content">
-            <h1><i class="fas fa-life-ring"></i> Support Center</h1>
-            <p class="subtitle">Professional support for your Betting Data Analysis Tool</p>
-        </div>
-    </header>
+    <div class="certificate-container">
+        <div class="certificate-content" id="certificate-to-download">
+            <div class="certificate-border">
+                <div class="certificate-header">
+                    <div class="logo">
+                        <img src="favicon_io/android-chrome-192x192.png" alt="Logo" class="logo-img">
+                        <h1>pinecoder.in</h1>
+                    </div>
+                    <h2>Certificate of Support</h2>
+                </div>
 
-    <main>
-        <!-- Support Hero -->
-        <div class="support-hero">
-            <h2>Welcome to Pinecoder.in Support</h2>
-            <p>Your comprehensive support coverage for the Betting Performance Analyzer is active and ready to assist you</p>
-        </div>
+                <div class="certificate-body">
+                    <p class="intro">This certificate is proudly presented to</p>
+                    <h3 class="client-name">Ethan Harvey</h3>
+                    <p class="intro">for the project</p>
+                    <h4 class="project-name">Betting Data Analysis Tool</h4>
 
-        <!-- Project Details -->
-        <div class="project-details">
-            <div class="section-header">
-                <h3 class="section-title">
-                    <i class="fas fa-info-circle section-icon"></i>
-                    Project Information
-                </h3>
-            </div>
-            <div class="info-grid">
-                <div class="info-card">
-                    <div class="info-label">Client</div>
-                    <div class="info-value">Ethan Harvey</div>
-                </div>
-                <div class="info-card">
-                    <div class="info-label">Project</div>
-                    <div class="info-value">Betting Data Analysis</div>
-                </div>
-                <div class="info-card">
-                    <div class="info-label">Developer</div>
-                    <div class="info-value">Kruthika Agarwal</div>
-                </div>
-            </div>
-        </div>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <p class="label">Developer</p>
+                            <p class="value">Kruthika Agarwal</p>
+                        </div>
+                        <div class="detail-item">
+                            <p class="label">Support Period</p>
+                            <p class="value">July 23, 2025 - July 22, 2026</p>
+                        </div>
+                    </div>
 
-        <!-- Support Cards -->
-        <div class="support-grid">
-            <div class="support-card">
-                <div class="card-icon">
-                    <i class="fas fa-calendar-check"></i>
+                    <div class="coverage-section">
+                        <h5 class="section-title">Coverage Includes</h5>
+                        <ul>
+                            <li><i class="fas fa-check-circle"></i> Complete bug fixes and patches</li>
+                            <li><i class="fas fa-check-circle"></i> Technical troubleshooting</li>
+                            <li><i class="fas fa-check-circle"></i> Performance optimization</li>
+                            <li><i class="fas fa-check-circle"></i> Priority email support</li>
+                        </ul>
+                    </div>
                 </div>
-                <h3 class="card-title">Support Period</h3>
-                <div class="card-content">
-                    <p>Your comprehensive support coverage is active from:</p>
-                    <p class="highlight" style="font-size: 1.3rem; margin: 1rem 0;">
-                        July XX, 2025 - June XX, 2026
-                    </p>
-                    <p class="success-text">✓ One full year of dedicated technical support</p>
-                </div>
-            </div>
 
-            <div class="support-card">
-                <div class="card-icon">
-                    <i class="fas fa-shield-alt"></i>
-                </div>
-                <h3 class="card-title">Coverage Includes</h3>
-                <div class="card-content">
-                    <p>✓ Complete bug fixes and patches</p>
-                    <p>✓ Technical troubleshooting assistance</p>
-                    <p>✓ Performance optimization support</p>
-                    <p>✓ Compatibility updates as needed</p>
-                    <p>✓ Priority email support response</p>
-                    <p>✓ Solution reliability guarantee</p>
-                </div>
-            </div>
-
-            <div class="support-card">
-                <div class="card-icon">
-                    <i class="fas fa-bolt"></i>
-                </div>
-                <h3 class="card-title">Response Time</h3>
-                <div class="card-content">
-                    <p>We are committed to providing timely support:</p>
-                    <p style="margin-top: 1rem;">
-                        <span class="highlight">24-48 hours</span> - Standard inquiries
-                    </p>
-                    <p>
-                        <span class="highlight">Same day</span> - Critical issues
-                    </p>
-                    <p style="margin-top: 1rem;">Our expert team ensures your betting analysis tool runs smoothly throughout the support period.</p>
+                <div class="certificate-footer">
+                    <div class="signature">
+                        <p class="signature-line">Chaitanya Murarka</p>
+                        <p class="signature-title">Founder, pinecoder.in</p>
+                    </div>
+                    <div class="contact-info">
+                        <p><i class="fas fa-envelope"></i> contact@pinecoder.in</p>
+                        <p><i class="fas fa-globe"></i> <a href="https://pinecoder.in" target="_blank" id="pdf-link">pinecoder.in</a></p>
+                    </div>
                 </div>
             </div>
         </div>
+        <button class="download-btn" id="download-btn"><i class="fas fa-download"></i> Download Certificate</button>
+    </div>
 
-        <!-- Contact Section -->
-        <div class="contact-section">
-            <h3>Need Support?</h3>
-            <p>Our dedicated team is here to help with any questions or issues</p>
-            <a href="mailto:contact@pinecoder.in" class="contact-button">
-                <i class="fas fa-envelope"></i>
-                contact@pinecoder.in
-            </a>
-        </div>
-    </main>
-
-    <footer>
-        <p>&copy; 2025 Pinecoder.in. All rights reserved. | Founder: Chaitanya Murarka</p>
-    </footer>
-
-    <script>
-        // Add smooth scroll behavior
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
-        });
-
-        // Add fade-in animation on scroll
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
-
-        const observer = new IntersectionObserver(function(entries) {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                }
-            });
-        }, observerOptions);
-
-        // Apply initial styles and observe
-        document.querySelectorAll('.support-card, .info-card').forEach(el => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateY(20px)';
-            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-            observer.observe(el);
-        });
-    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="support-script.js"></script>
 </body>
 </html>

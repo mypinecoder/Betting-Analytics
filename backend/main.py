@@ -130,7 +130,6 @@ def clean_and_standardize_data(dataframes: Dict) -> Dict:
             prices_df['Track'] = prices_df['Track'].replace(track_name_map)
             prices_df = prices_df.rename(columns={'selection_name': 'Horse Name'})
             
-            # FIX: Remove leading numbers and dots from horse names
             if 'Horse Name' in prices_df.columns:
                 prices_df['Horse Name'] = prices_df['Horse Name'].str.replace(r'^\d+\.\s*', '', regex=True)
 
@@ -340,15 +339,34 @@ async def analyze_betting_files(files: List[UploadFile] = File(...)):
         raise HTTPException(status_code=400, detail="No files uploaded.")
         
     dataframes = {}
+    
+    # Define the expected columns for each file type
+    column_definitions = {
+        "race_data": {'HorseName', 'JockeyName', 'RaceTrack', 'RaceNum'},
+        "win_prices": {'event_id', 'selection_name', 'bsp', 'pptradedvol'},
+        "place_prices": {'event_id', 'selection_name', 'bsp', 'pptradedvol'},
+        "tips": {'Tip Website', 'Scrape Date', 'Track', 'Race'}
+    }
+
     for file in files:
-        filename = file.filename.lower()
         content = await file.read()
         try:
             df = pd.read_csv(io.BytesIO(content))
-            if "race_data" in filename: dataframes["race_data"] = df
-            elif "dwbfpricesauswin" in filename: dataframes["win_prices"] = df
-            elif "dwbfpricesausplace" in filename: dataframes["place_prices"] = df
-            elif re.search(r'\d{4}-\d{2}-\d{2}\.csv$', filename) or 'Tip Website' in df.columns: dataframes["tips"] = df
+            df_columns = set(df.columns)
+            
+            if column_definitions["race_data"].issubset(df_columns):
+                dataframes["race_data"] = df
+            elif column_definitions["tips"].issubset(df_columns):
+                dataframes["tips"] = df
+            elif column_definitions["win_prices"].issubset(df_columns):
+                # Differentiate between win and place prices by checking event_name
+                if 'event_name' in df.columns and df['event_name'].str.contains('To Be Placed').any():
+                    dataframes["place_prices"] = df
+                else:
+                    dataframes["win_prices"] = df
+            else:
+                 logger.warning(f"Could not classify file: {file.filename}")
+
         except Exception as e:
             logger.error(f"Error parsing {file.filename}: {e}")
             raise HTTPException(status_code=400, detail=f"Could not parse file: {file.filename}")
@@ -389,7 +407,10 @@ if os.path.exists(frontend_dir):
         file_path = os.path.join(frontend_dir, path)
         if os.path.exists(file_path):
             return FileResponse(file_path)
-            
+        raise HTTPException(status_code=404, detail="Not Found")
+else:
+    logger.error(f"Frontend directory not found at: {frontend_dir}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
