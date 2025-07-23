@@ -274,7 +274,8 @@ def perform_full_analysis(dataframes: Dict) -> Dict:
 
     if not race_data_df.empty:
         if 'Prize_Numeric' in race_data_df.columns:
-            avg_prize = race_data_df.groupby('Track')['Prize_Numeric'].mean().round(0).sort_values(ascending=False)
+            unique_races = race_data_df.drop_duplicates(subset=['Track', 'Race'])
+            avg_prize = unique_races.groupby('Track')['Prize_Numeric'].mean().round(0).sort_values(ascending=False)
             response["charts"]["avg_prize_by_track"] = {'labels': avg_prize.index.tolist(), 'data': avg_prize.values.tolist()}
         if 'OddsSource' in race_data_df.columns:
             response["charts"]["best_odds_provider"] = analyze_best_odds_provider(race_data_df)

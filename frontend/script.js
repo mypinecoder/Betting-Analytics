@@ -35,16 +35,16 @@ const plotlyLayoutConfig = {
 
 const pdfPlotlyLayoutConfig = {
     ...plotlyLayoutConfig,
-    font: { ...plotlyLayoutConfig.font, color: '#1A202C' }, // Light theme text for PDF
-    paper_bgcolor: '#FFFFFF',
-    plot_bgcolor: '#FFFFFF',
+    font: { ...plotlyLayoutConfig.font, color: '#E2E8F0' }, // Dark theme text for PDF
+    paper_bgcolor: '#2D3748', // Dark card background for PDF
+    plot_bgcolor: '#2D3748',  // Dark card background for PDF
      xaxis: {
-        gridcolor: '#dee2e6',
-        zerolinecolor: '#dee2e6'
+        gridcolor: '#4A5568',
+        zerolinecolor: '#4A5568'
     },
     yaxis: {
-        gridcolor: '#dee2e6',
-        zerolinecolor: '#dee2e6'
+        gridcolor: '#4A5568',
+        zerolinecolor: '#4A5568'
     },
 };
 
@@ -159,7 +159,7 @@ function populateDashboard(data) {
         }, 0);
     }
 
-    // --- NEW: Market Movers Split Charts ---
+    // --- Market Movers Split Charts ---
     if (charts && charts.market_movers && charts.market_movers.labels_drifters.length > 0) {
         createPlotCard('market-drifters', 'Biggest Market Drifters (Price Increased)', 'grid-col-6 min-h-400');
         setTimeout(() => {
@@ -208,41 +208,46 @@ function populateDashboard(data) {
         }, 0);
     }
 
-    // --- NEW: Jockey Analysis Charts ---
+    // --- Jockey Analysis Charts (Updated Logic) ---
     if (tables && tables.jockey_performance && tables.jockey_performance.length > 0) {
         // Chart 1: Top Jockeys by Number of Rides
-        createPlotCard('jockeys-by-rides', 'Busiest Jockeys (by # of Rides)', 'grid-col-6 min-h-400');
-        setTimeout(() => {
-            const sortedByRides = [...tables.jockey_performance].sort((a, b) => a.num_rides - b.num_rides);
-            const ridesData = {
-                labels: sortedByRides.map(j => j.JockeyName),
-                data: sortedByRides.map(j => j.num_rides)
-            };
-            renderBarChart(ridesData, 'jockeys-by-rides', {
-                xaxis: { title: '# of Rides' },
-                yaxis: { automargin: true },
-                orientation: 'h',
-                color: '#3498DB'
-            });
-        }, 0);
+        const sortedByRides = [...tables.jockey_performance].sort((a, b) => a.num_rides - b.num_rides);
+        if (sortedByRides.length > 0) {
+            createPlotCard('jockeys-by-rides', 'Busiest Jockeys (by # of Rides)', 'grid-col-6 min-h-400');
+            setTimeout(() => {
+                const ridesData = {
+                    labels: sortedByRides.map(j => j.JockeyName),
+                    data: sortedByRides.map(j => j.num_rides)
+                };
+                renderBarChart(ridesData, 'jockeys-by-rides', {
+                    xaxis: { title: '# of Rides' },
+                    yaxis: { automargin: true },
+                    orientation: 'h',
+                    color: '#3498DB'
+                });
+            }, 0);
+        }
 
         // Chart 2: Top Jockeys by Traded Volume
-        createPlotCard('jockeys-by-volume', 'Top Jockeys by Traded Volume', 'grid-col-6 min-h-400');
-        setTimeout(() => {
-            const sortedByVolume = [...tables.jockey_performance]
-                .filter(j => j.total_traded_volume > 0)
-                .sort((a, b) => a.total_traded_volume - b.total_traded_volume);
-            const volumeData = {
-                labels: sortedByVolume.map(j => j.JockeyName),
-                data: sortedByVolume.map(j => j.total_traded_volume)
-            };
-            renderBarChart(volumeData, 'jockeys-by-volume', {
-                xaxis: { title: 'Total Traded Volume ($)' },
-                yaxis: { automargin: true },
-                orientation: 'h',
-                color: '#9B59B6'
-            });
-        }, 0);
+        const sortedByVolume = [...tables.jockey_performance]
+            .filter(j => j.total_traded_volume > 0)
+            .sort((a, b) => a.total_traded_volume - b.total_traded_volume);
+        
+        if (sortedByVolume.length > 0) {
+            createPlotCard('jockeys-by-volume', 'Top Jockeys by Traded Volume', 'grid-col-6 min-h-400');
+            setTimeout(() => {
+                const volumeData = {
+                    labels: sortedByVolume.map(j => j.JockeyName),
+                    data: sortedByVolume.map(j => j.total_traded_volume)
+                };
+                renderBarChart(volumeData, 'jockeys-by-volume', {
+                    xaxis: { title: 'Total Traded Volume ($)' },
+                    yaxis: { automargin: true },
+                    orientation: 'h',
+                    color: '#9B59B6'
+                });
+            }, 0);
+        }
     }
 
     // --- Factor Analysis ---
@@ -349,7 +354,7 @@ function createPlotCard(id, title, gridClass) {
 }
 
 function renderBarChart(data, elementId, options = {}) {
-    // Sort data for horizontal charts so the largest value is at the top
+    if (!data || !data.labels || data.labels.length === 0) return;
     const sortedData = (options.orientation === 'h')
         ? data.labels.map((label, i) => ({ label, value: data.data[i] })).sort((a, b) => a.value - b.value)
         : { labels: data.labels, data: data.data };
@@ -369,6 +374,7 @@ function renderBarChart(data, elementId, options = {}) {
 }
 
 function renderPieChart(data, elementId, options = {}) {
+    if (!data || !data.labels || data.labels.length === 0) return;
     const plotData = [{
         labels: data.labels,
         values: data.data,
@@ -387,6 +393,7 @@ function renderPieChart(data, elementId, options = {}) {
 }
 
 function renderGroupedBarChart(data, elementId, options = {}) {
+    if (!data || !data.labels || data.labels.length === 0) return;
     const trace1 = { x: data.labels, y: data.data1, name: data.name1, type: 'bar', marker: {color: VIBRANT_CATEGORICAL_PALETTE[0]}};
     const trace2 = { x: data.labels, y: data.data2, name: data.name2, type: 'bar', marker: {color: VIBRANT_CATEGORICAL_PALETTE[1]}};
     const plotData = [trace1, trace2];
@@ -395,6 +402,7 @@ function renderGroupedBarChart(data, elementId, options = {}) {
 }
 
 function renderAreaChart(data, elementId, options = {}) {
+    if (!data || !data.labels || data.labels.length === 0) return;
     const plotData = [{
         x: data.labels,
         y: data.data,
@@ -409,6 +417,7 @@ function renderAreaChart(data, elementId, options = {}) {
 }
 
 function renderLollipopChart(data, elementId, options = {}) {
+    if (!data || !data.labels || data.labels.length === 0) return;
     const sortedData = data.labels.map((label, i) => ({ label, value: data.data[i] })).sort((a, b) => a.value - b.value);
     
     const plotData = [{
@@ -437,6 +446,7 @@ function renderLollipopChart(data, elementId, options = {}) {
 }
 
 function renderDotPlot(data, elementId, options = {}) {
+    if (!data || !data.labels || data.labels.length === 0) return;
     const sortedData = data.labels.map((label, i) => ({ label, value: data.data[i] })).sort((a, b) => a.value - b.value);
 
     const plotData = [{
@@ -454,7 +464,7 @@ function renderDotPlot(data, elementId, options = {}) {
     Plotly.newPlot(elementId, plotData, layout, {responsive: true});
 }
 
-// --- PDF Download Functionality ---
+// --- PDF Download Functionality (Updated) ---
 async function downloadPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -464,6 +474,7 @@ async function downloadPDF() {
     let yPos = 15;
     const pageHeight = doc.internal.pageSize.height;
     const margin = 10;
+    const renderedTables = new Set();
 
     const checkPageBreak = (spaceNeeded) => {
         if (yPos + spaceNeeded > pageHeight - margin) {
@@ -472,16 +483,23 @@ async function downloadPDF() {
         }
     };
 
+    doc.setFillColor('#1A202C');
+    doc.rect(0, 0, doc.internal.pageSize.width, doc.internal.pageSize.height, 'F');
+
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor('#2ECC71');
     doc.text('Betting Performance Analysis Report', doc.internal.pageSize.width / 2, yPos, { align: 'center' });
     yPos += 10;
+
+    doc.setDrawColor('#4A5568');
     doc.setLineWidth(0.5);
     doc.line(margin, yPos, doc.internal.pageSize.width - margin, yPos);
     yPos += 10;
-
+    
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor('#E2E8F0');
     const introText = 'This report provides a comprehensive analysis of the uploaded betting data, covering key performance indicators, tipster performance, and market dynamics.';
     const splitIntro = doc.splitTextToSize(introText, doc.internal.pageSize.width - margin * 2);
     doc.text(splitIntro, margin, yPos);
@@ -489,6 +507,7 @@ async function downloadPDF() {
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor('#2ECC71');
     doc.text('Key Performance Indicators', margin, yPos);
     yPos += 8;
 
@@ -506,58 +525,125 @@ async function downloadPDF() {
             head: [['Metric', 'Value']],
             body: kpiBody,
             theme: 'grid',
-            headStyles: { fillColor: [44, 62, 80] },
-            didDrawPage: (data) => { yPos = data.cursor.y + 5; }
+            styles: {
+                fillColor: '#2D3748',
+                textColor: '#E2E8F0',
+                lineColor: '#4A5568'
+            },
+            headStyles: { 
+                fillColor: '#2ECC71',
+                textColor: '#1A202C',
+                fontStyle: 'bold'
+            },
         });
+        yPos = doc.autoTable.previous.finalY + 10;
     }
 
     const plotCards = document.querySelectorAll('.plot-card');
     
     for (const card of plotCards) {
         const title = card.querySelector('.plot-title').innerText;
-        const plotDivId = card.querySelector('div[id]').id;
         
+        if (title === 'Average Prize Money by Track') {
+            continue; // Skip this chart
+        }
+
+        const plotDivId = card.querySelector('div[id]').id;
+        const plotDiv = document.getElementById(plotDivId);
+
+        if (!plotDiv || !plotDiv.data || plotDiv.data.length === 0) {
+            continue;
+        }
+
         checkPageBreak(80); 
 
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#2ECC71');
         doc.text(title, margin, yPos);
         yPos += 8;
+        
+        let pdfLayout = { ...pdfPlotlyLayoutConfig };
+        if (plotDiv.layout.orientation === 'h') {
+            pdfLayout.margin = { l: 120, r: 20, b: 40, t: 40 };
+            pdfLayout.yaxis = { ...pdfLayout.yaxis, automargin: false };
+        }
 
         try {
-            await Plotly.update(plotDivId, {}, pdfPlotlyLayoutConfig);
-
-            const imgData = await Plotly.toImage(plotDivId, { format: 'png', width: 800, height: 450 });
+            await Plotly.update(plotDivId, {}, pdfLayout);
+            const imgData = await Plotly.toImage(plotDivId, { format: 'jpeg', quality: 0.7, width: 800, height: 450 });
             const imgWidth = doc.internal.pageSize.width - margin * 2;
             const imgHeight = (imgWidth * 450) / 800;
             
-            checkPageBreak(imgHeight + 10);
-            doc.addImage(imgData, 'PNG', margin, yPos, imgWidth, imgHeight);
-            yPos += imgHeight + 15;
+            checkPageBreak(imgHeight + 5);
+            doc.addImage(imgData, 'JPEG', margin, yPos, imgWidth, imgHeight);
+            yPos += imgHeight + 5;
 
         } catch (err) {
             console.error(`Could not render chart ${title} to PDF:`, err);
             doc.setFont('helvetica', 'italic');
             doc.text('Chart could not be rendered.', margin, yPos);
-            yPos += 15;
+            yPos += 10;
         } finally {
-            // This block ensures the chart theme is always reverted, even if an error occurs.
             await Plotly.update(plotDivId, {}, plotlyLayoutConfig);
         }
 
+        let tableData = null;
+        let tableKey = null;
+
         if (title === 'Tipster ROI Leaderboard' && analysisData.tables.tipster_roi) {
-            checkPageBreak(40);
-             doc.autoTable({
+            tableData = analysisData.tables.tipster_roi;
+            tableKey = 'tipster_roi';
+        } else if (title === 'Top 10 Most Traded Horses' && analysisData.tables.most_traded_horses) {
+            tableData = analysisData.tables.most_traded_horses;
+            tableKey = 'most_traded_horses';
+        } else if (title.includes('Jockeys') && analysisData.tables.jockey_performance) {
+            tableData = analysisData.tables.jockey_performance;
+            tableKey = 'jockey_performance';
+        }
+
+        if (tableData && tableData.length > 0 && !renderedTables.has(tableKey)) {
+            const head = [Object.keys(tableData[0])];
+            const body = tableData.map(row => 
+                Object.values(row).map(val => {
+                    if (typeof val === 'number') return val.toFixed(2);
+                    return val !== null && val !== undefined ? val : '';
+                })
+            );
+
+            checkPageBreak((body.length + 1) * 7 + 10);
+            
+            doc.autoTable({
                 startY: yPos,
-                head: [Object.keys(analysisData.tables.tipster_roi[0])],
-                body: analysisData.tables.tipster_roi.map(row => Object.values(row).map(val => typeof val === 'number' ? val.toFixed(2) : val)),
+                head: head,
+                body: body,
                 theme: 'striped',
-                headStyles: { fillColor: [44, 62, 80] },
-                didDrawPage: (data) => { yPos = data.cursor.y + 10; }
+                styles: {
+                    fillColor: '#2D3748',
+                    textColor: '#E2E8F0',
+                    lineColor: '#4A5568'
+                },
+                headStyles: { 
+                    fillColor: '#2ECC71',
+                    textColor: '#1A202C',
+                    fontStyle: 'bold'
+                },
             });
+            yPos = doc.autoTable.previous.finalY + 10;
+            renderedTables.add(tableKey);
         }
     }
     
+    // Add Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor('#A0AEC0');
+        doc.text('Betting Insights © 2025 Pinecoder.in', margin, pageHeight - 10);
+        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - margin, pageHeight - 10, { align: 'right' });
+    }
+
     doc.save('Betting-Performance-Report.pdf');
     spinner.classList.add('hidden');
 }
