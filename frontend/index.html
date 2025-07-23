@@ -3,74 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Betting Performance Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.4.0/css/responsive.dataTables.min.css">
+    <title>Advanced Betting Performance Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="background-glow-1"></div>
+    <div class="background-glow-2"></div>
+
     <header>
-        <nav>
-            <div class="logo">
-                <i class="fas fa-chart-line"></i> Betting Analytics
-            </div>
-            <ul class="nav-links">
-                <li><a href="#dashboard">Dashboard</a></li>
-                <li><a href="#upload">Upload</a></li>
-            </ul>
-        </nav>
+        <div class="container">
+            <nav>
+                <div class="logo">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Betting Insights</span>
+                </div>
+                 <a href="support.html" class="support-link">
+                    <i class="fas fa-life-ring"></i> Support
+                </a>
+            </nav>
+        </div>
     </header>
 
-    <main>
-        <section class="hero">
-            <h1>Ultimate Betting Performance Dashboard</h1>
-            <p>From high-level KPIs to deep-dive analytics, all in one place.</p>
-        </section>
-
-        <section id="upload" class="upload-section">
-            <div class="container">
-                <h2><i class="fas fa-upload"></i> Upload Your CSV Files</h2>
+    <main class="container">
+        <section id="upload-section" class="upload-section">
+            <div class="upload-content">
+                <h1>Next-Gen Betting Analysis</h1>
+                <p>Upload your CSV files—<strong>Tips, Race Data, and Prices</strong>—to unlock deep-dive interactive visualizations.</p>
+            </div>
+            <div class="upload-area-wrapper">
                 <div class="upload-area" id="upload-area">
                     <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                    <p>Drag & drop: <strong>Tips (YYYY-MM-DD.csv)</strong>, <strong>Race Data</strong>, and <strong>Win/Place Prices</strong></p>
+                    <p><strong>Drag & Drop Files Here</strong><br> or click to select</p>
                     <input type="file" id="file-input" class="file-input" multiple accept=".csv">
                 </div>
                 <div id="file-list" class="file-list"></div>
                 <button id="analyze-btn" class="analyze-btn" disabled>
-                    <i class="fas fa-rocket"></i> Launch Analysis
+                    <i class="fas fa-rocket"></i> Generate Insights
                 </button>
             </div>
         </section>
 
-        <div id="loading-spinner" class="spinner-overlay hidden"><div class="spinner"></div></div>
+        <div id="loading-spinner" class="spinner-overlay hidden">
+            <div class="spinner"></div>
+            <p>Analyzing Data...</p>
+        </div>
 
         <section id="dashboard" class="dashboard-section hidden">
-            <div class="container">
-                <div class="dashboard-header">
-                    <h2 class="section-title"><i class="fas fa-th-large section-icon"></i> Dashboard</h2>
-                    <button id="download-pdf-btn" class="download-btn"><i class="fas fa-file-pdf"></i> Download Report</button>
-                </div>
-                <div id="kpi-section-container"></div>
-                <div id="tabs-container"></div>
-                <div id="tab-content-container"></div>
+            <div class="dashboard-header">
+                <h2>Performance Dashboard</h2>
+                 <button id="download-pdf-btn" class="download-btn">
+                    <i class="fas fa-file-pdf"></i> Download Report
+                </button>
             </div>
+            <div id="kpi-grid" class="kpi-grid"></div>
+            <div id="dashboard-grid" class="dashboard-grid">
+                </div>
         </section>
     </main>
 
-    <footer id="support-footer">
-        <div class="container">
-            <div class="footer-bottom">
-                <p>&copy; 2025 Pinecoder.in. All rights reserved.</p>
-            </div>
-        </div>
+    <footer>
+        <p>&copy; 2025 Pinecoder.in. All rights reserved.</p>
     </footer>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.1/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.4.0/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
