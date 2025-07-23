@@ -127,12 +127,13 @@ def clean_and_standardize_data(dataframes: Dict) -> Dict:
             prices_df = dataframes[price_type].copy()
             if 'menu_hint' in prices_df.columns:
                 prices_df['Track'] = prices_df['menu_hint'].str.split(r' \(').str[0]
+            prices_df['Track'] = prices_df['Track'].replace(track_name_map)
             prices_df = prices_df.rename(columns={'selection_name': 'Horse Name'})
             
             if 'event_name' in prices_df.columns:
                 prices_df['Race'] = prices_df['event_name'].str.extract(r'R(\d+)').astype(float)
             
-            numeric_cols = ['bsp', 'ppwap', 'morningwap', 'ppmax', 'ppmin', 'morningtradedvol', 'pptradedvol', 'iptradedvol']
+            numeric_cols = ['bsp', 'ppwap', 'morningwap', 'ppmax', 'ppmin', 'morningtradedvol', 'pptradedvol', 'iptradedvol', 'win_lose']
             for col in numeric_cols:
                 if col in prices_df.columns:
                     prices_df[col] = pd.to_numeric(prices_df[col], errors='coerce')
@@ -147,10 +148,16 @@ def analyze_market_movers(win_prices_df):
     df = df[df['morningwap'] > 0]
     if df.empty: return None
     df['change_pct'] = ((df['bsp'] - df['morningwap']) / df['morningwap']) * 100
+    
     drifters = df.nlargest(5, 'change_pct')
     steamers = df.nsmallest(5, 'change_pct')
-    market_movers = pd.concat([drifters, steamers]).sort_values('change_pct', ascending=False)
-    return {'labels': market_movers['Horse Name'].tolist(), 'data': market_movers['change_pct'].tolist()}
+    
+    return {
+        'labels_drifters': drifters['Horse Name'].tolist(), 
+        'data_drifters': drifters['change_pct'].tolist(),
+        'labels_steamers': steamers['Horse Name'].tolist(),
+        'data_steamers': steamers['change_pct'].tolist()
+    }
 
 def analyze_most_traded(win_prices_df):
     races_df = win_prices_df.groupby('event_name')['pptradedvol'].sum().nlargest(5).sort_values()
@@ -164,17 +171,33 @@ def analyze_best_odds_provider(race_data_df):
     provider_counts = race_data_df['OddsSource'].value_counts()
     return {'labels': provider_counts.index.tolist(), 'data': provider_counts.values.tolist()}
 
-def analyze_jockey_performance(race_data_df):
-    if 'JockeyName' not in race_data_df.columns or 'BestOdds' not in race_data_df.columns: return None
+def analyze_jockey_performance(race_data_df, win_prices_df):
+    if 'JockeyName' not in race_data_df.columns:
+        return None
+        
     jockey_stats = race_data_df.groupby('JockeyName').agg(
         num_rides=('JockeyName', 'count'),
         avg_odds=('BestOdds', 'mean')
-    ).reset_index().sort_values('num_rides', ascending=False).head(20)
-    return jockey_stats.to_dict(orient='records')
+    ).reset_index()
+
+    if not win_prices_df.empty and 'win_lose' in win_prices_df.columns:
+        merged_for_wins = pd.merge(race_data_df, win_prices_df[['Horse Name', 'Track', 'win_lose', 'pptradedvol']], on=['Horse Name', 'Track'], how='left')
+        jockey_wins = merged_for_wins.groupby('JockeyName').agg(
+            wins=('win_lose', 'sum'),
+            total_traded_volume=('pptradedvol', 'sum')
+        ).reset_index()
+        jockey_stats = pd.merge(jockey_stats, jockey_wins, on='JockeyName', how='left')
+        jockey_stats['win_rate'] = (jockey_stats['wins'] / jockey_stats['num_rides'] * 100).fillna(0)
+    else:
+        jockey_stats['win_rate'] = 0
+        jockey_stats['total_traded_volume'] = 0
+
+    return jockey_stats.sort_values('num_rides', ascending=False).head(20).to_dict(orient='records')
+
 
 def analyze_tipster_strategy(tips_df, race_data_df):
     first_selections = tips_df[tips_df['Position'] == 1].copy()
-    merged = pd.merge(first_selections, race_data_df[['Horse Name', 'Track', 'BestOdds']], on=['Horse Name', 'Track'], how='left')
+    merged = pd.merge(first_selections, race_data_df[['Horse Name', 'Track', 'Race', 'BestOdds']], on=['Horse Name', 'Track', 'Race'], how='left')
     merged.dropna(subset=['BestOdds'], inplace=True)
     if merged.empty: return None
     tipster_avg_odds = merged.groupby('Tip Website')['BestOdds'].mean().sort_values(ascending=False)
@@ -216,48 +239,34 @@ def perform_full_analysis(dataframes: Dict) -> Dict:
     tips_df = dataframes.get('tips', pd.DataFrame())
 
     # --- Merged DataFrame ---
-    # (This part remains the same)
     merged_df = pd.DataFrame()
     if not tips_df.empty:
         merged_df = tips_df.copy()
-        lenient_keys = ['Track', 'Horse Name']
-        if not race_data_df.empty and all(k in merged_df.columns and k in race_data_df.columns for k in lenient_keys):
-            merged_df = pd.merge(merged_df, race_data_df, on=lenient_keys, how='left', suffixes=('', '_race'))
-        if not win_prices_df.empty and all(k in merged_df.columns and k in win_prices_df.columns for k in lenient_keys):
-            merged_df = pd.merge(merged_df, win_prices_df, on=lenient_keys, how='left', suffixes=('', '_win'))
+        merge_keys = ['Track', 'Horse Name', 'Race']
+        if not race_data_df.empty and all(k in merged_df.columns and k in race_data_df.columns for k in merge_keys):
+            merged_df = pd.merge(merged_df, race_data_df, on=merge_keys, how='left', suffixes=('', '_race'))
+        if not win_prices_df.empty and all(k in merged_df.columns and k in win_prices_df.columns for k in merge_keys):
+            merged_df = pd.merge(merged_df, win_prices_df, on=merge_keys, how='left', suffixes=('', '_win'))
 
     # --- KPIs ---
-    # (This part is updated)
     if not tips_df.empty:
         response["kpis"]["total_tips"] = len(tips_df)
         response["kpis"]["total_tipsters"] = tips_df['Tip Website'].nunique()
     if not race_data_df.empty:
         response["kpis"]["total_races"] = race_data_df.groupby(['Track', 'Race']).ngroups
         response["kpis"]["total_tracks"] = race_data_df['Track'].nunique()
-        # ADDED: Average Field Size KPI
         response["kpis"]["average_field_size"] = round(race_data_df.groupby(['Track', 'Race'])['Horse Name'].count().mean(), 2)
     if not win_prices_df.empty and 'pptradedvol' in win_prices_df.columns:
         response["kpis"]["total_traded_volume"] = win_prices_df['pptradedvol'].sum()
         drifters = win_prices_df[win_prices_df['bsp'] > win_prices_df['morningwap']].shape[0]
-        shorteners = win_prices_df[win_prices_df['bsp'] < win_prices_df['morningwap']].shape[0]
         total_runners = win_prices_df.shape[0]
         if total_runners > 0:
             response["kpis"]["drifters_percent"] = round((drifters / total_runners) * 100, 2)
-            response["kpis"]["shorteners_percent"] = round((shorteners / total_runners) * 100, 2)
 
     # --- Standalone & Merged Analysis ---
-    # (This part is updated)
     if not win_prices_df.empty:
-        # (Market Movers and Traded analysis remains the same)
         if 'morningwap' in win_prices_df.columns and 'bsp' in win_prices_df.columns:
             response["charts"]["market_movers"] = analyze_market_movers(win_prices_df)
-            df_moves = win_prices_df[['Horse Name', 'morningwap', 'bsp']].copy()
-            df_moves.dropna(subset=['morningwap', 'bsp'], inplace=True)
-            df_moves = df_moves[df_moves['morningwap'] > 0]
-            df_moves['change_pct'] = ((df_moves['bsp'] - df_moves['morningwap']) / df_moves['morningwap']) * 100
-            response["tables"]["biggest_drifters"] = df_moves.nlargest(5, 'change_pct').to_dict(orient='records')
-            response["tables"]["biggest_steamers"] = df_moves.nsmallest(5, 'change_pct').to_dict(orient='records')
-
         if 'pptradedvol' in win_prices_df.columns:
             races, horses = analyze_most_traded(win_prices_df)
             response["charts"]["most_traded_races"] = races
@@ -269,21 +278,17 @@ def perform_full_analysis(dataframes: Dict) -> Dict:
             response["charts"]["avg_prize_by_track"] = {'labels': avg_prize.index.tolist(), 'data': avg_prize.values.tolist()}
         if 'OddsSource' in race_data_df.columns:
             response["charts"]["best_odds_provider"] = analyze_best_odds_provider(race_data_df)
-        if 'JockeyName' in race_data_df.columns:
-            response["tables"]["jockey_performance"] = analyze_jockey_performance(race_data_df)
+        response["tables"]["jockey_performance"] = analyze_jockey_performance(race_data_df, win_prices_df)
             
     if not tips_df.empty:
         tips_by_track = tips_df['Track'].value_counts()
         response["charts"]["tips_by_track"] = {'labels': tips_by_track.index.tolist(), 'data': tips_by_track.values.tolist()}
-        
-        # ADDED: Tipster Market Share calculation
         tipster_share = tips_df['Tip Website'].value_counts()
         response["charts"]["tipster_market_share"] = {'labels': tipster_share.index.tolist(), 'data': tipster_share.values.tolist()}
         
         if not race_data_df.empty and 'BestOdds' in race_data_df.columns:
             response["charts"]["tipster_strategy"] = analyze_tipster_strategy(tips_df, race_data_df)
 
-    # (The rest of the function remains the same...)
     if not merged_df.empty:
         if 'win_lose' in merged_df.columns and 'bsp' in merged_df.columns and merged_df['bsp'].notna().any():
             response["tables"]["tipster_roi"] = calculate_roi(merged_df)
@@ -304,29 +309,23 @@ def perform_full_analysis(dataframes: Dict) -> Dict:
             if not tipster_market.empty:
                 response["charts"]["tipster_vs_market"] = {
                     'labels': tipster_market['Tip Website'].tolist(),
-                    'datasets': [{'label': 'Avg Tipped Odds', 'data': tipster_market['avg_tip_odds'].tolist()},
-                                 {'label': 'Avg BSP', 'data': tipster_market['avg_bsp'].tolist()}]}
+                    'data1': tipster_market['avg_tip_odds'].tolist(),
+                    'data2': tipster_market['avg_bsp'].tolist(),
+                    'name1': 'Avg Tipped Odds',
+                    'name2': 'Avg BSP'
+                }
 
         if 'JockeyName' in merged_df.columns:
             jockey_tips = merged_df['JockeyName'].value_counts().head(20)
             response['charts']['top_jockeys_by_tips'] = {'labels': jockey_tips.index.tolist(), 'data': jockey_tips.values.tolist()}
         
-        if 'BestOdds' in merged_df.columns:
-            odds_ranges = pd.cut(merged_df['BestOdds'].dropna(), bins=[0, 3, 5, 10, 20, float('inf')], labels=['Favs (< $3)', 'Short ($3-5)', 'Medium ($5-10)', 'Long ($10-20)', 'Outsiders ($20+)'])
-            odds_distribution = odds_ranges.value_counts()
-            response['charts']['odds_distribution'] = {'labels': odds_distribution.index.astype(str).tolist(), 'data': odds_distribution.values.tolist()}
-
     if not race_data_df.empty:
         field_sizes = race_data_df.groupby(['Track', 'Race'])['Horse Name'].count()
         response['charts']['field_size_distribution'] = {'labels': field_sizes.value_counts().sort_index().index.astype(str).tolist(), 'data': field_sizes.value_counts().sort_index().values.tolist()}
         if 'Prize_Numeric' in race_data_df.columns:
-            prize_bins = pd.cut(race_data_df['Prize_Numeric'], bins=[0, 10000, 25000, 50000, 100000, float('inf')], labels=['<10k', '10-25k', '25-50k', '50-100k', '100k+'])
-            response['charts']['prize_money_distribution'] = {'labels': prize_bins.value_counts().sort_index().index.astype(str).tolist(), 'data': prize_bins.value_counts().sort_index().values.tolist()}
-
-    if not merged_df.empty:
-        raw_cols = {'Tip Website': 'Tipster', 'Track': 'Track', 'Race': 'Race', 'Position': 'Position', 'Horse Name': 'Horse', 'JockeyName': 'Jockey', 'Barrier': 'Barrier', 'BestOdds': 'Best Odds', 'bsp': 'BSP', 'win_lose': 'Result'}
-        final_cols = [col for col in raw_cols.keys() if col in merged_df.columns]
-        response['raw_data']['recent_tips'] = merged_df[final_cols].rename(columns=raw_cols).head(200).to_dict(orient='records')
+            prize_bins = pd.cut(race_data_df['Prize_Numeric'], bins=[0, 25000, 50000, 100000, float('inf')], labels=['<25k', '25-50k', '50-100k', '100k+'])
+            prize_dist = prize_bins.value_counts().sort_index()
+            response['charts']['prize_money_distribution'] = {'labels': prize_dist.index.astype(str).tolist(), 'data': prize_dist.values.tolist()}
 
     return clean_for_json(response)
 
@@ -344,18 +343,13 @@ async def analyze_betting_files(files: List[UploadFile] = File(...)):
             if "race_data" in filename: dataframes["race_data"] = df
             elif "dwbfpricesauswin" in filename: dataframes["win_prices"] = df
             elif "dwbfpricesausplace" in filename: dataframes["place_prices"] = df
-            elif re.search(r'\d{4}-\d{2}-\d{2}\.csv$', filename): dataframes["tips"] = df
-            elif 'Tip Website' in df.columns: dataframes["tips"] = df
-            elif 'HorseName' in df.columns and 'RaceTrack' in df.columns: dataframes["race_data"] = df
-            elif 'bsp' in df.columns and 'win_lose' in df.columns:
-                dataframes["win_prices"] = df if 'place' not in filename else dataframes.get("win_prices")
-                dataframes["place_prices"] = df if 'place' in filename else dataframes.get("place_prices")
+            elif re.search(r'\d{4}-\d{2}-\d{2}\.csv$', filename) or 'Tip Website' in df.columns: dataframes["tips"] = df
         except Exception as e:
             logger.error(f"Error parsing {file.filename}: {e}")
-            continue
+            raise HTTPException(status_code=400, detail=f"Could not parse file: {file.filename}")
 
-    if not dataframes:
-        raise HTTPException(status_code=400, detail="No valid data files recognized.")
+    if not all(k in dataframes for k in ['tips', 'race_data', 'win_prices']):
+        raise HTTPException(status_code=400, detail="Please upload all three required file types: tips, race data, and win prices.")
 
     try:
         cleaned_dataframes = clean_and_standardize_data(dataframes)
@@ -370,16 +364,22 @@ async def analyze_betting_files(files: List[UploadFile] = File(...)):
 async def health_check():
     return {"status": "healthy"}
 
-# --- Static Files ---
 script_dir = os.path.dirname(__file__)
 frontend_dir = os.path.join(os.path.dirname(script_dir), "frontend")
 
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
-    return FileResponse(os.path.join(frontend_dir, 'favicon_io/favicon.ico'))
-
 if os.path.exists(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+    
+    @app.get("/", response_class=FileResponse)
+    async def read_index():
+        return FileResponse(os.path.join(frontend_dir, 'index.html'))
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def static_proxy(path: str):
+        file_path = os.path.join(frontend_dir, path)
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+        raise HTTPException(status_code=404, detail="Not Found")
 else:
     logger.error(f"Frontend directory not found at: {frontend_dir}")
 
