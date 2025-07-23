@@ -15,14 +15,15 @@ const plotlyLayoutConfig = {
     },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
-    margin: { l: 60, r: 40, b: 50, t: 50 },
+    margin: { l: 150, r: 40, b: 50, t: 50 }, // Increased left margin for labels
     xaxis: {
         gridcolor: '#4A5568',
         zerolinecolor: '#4A5568'
     },
     yaxis: {
         gridcolor: '#4A5568',
-        zerolinecolor: '#4A5568'
+        zerolinecolor: '#4A5568',
+        automargin: true // Apply automargin by default to prevent label cutoff
     },
     legend: {
         orientation: 'h',
@@ -44,7 +45,8 @@ const pdfPlotlyLayoutConfig = {
     },
     yaxis: {
         gridcolor: '#4A5568',
-        zerolinecolor: '#4A5568'
+        zerolinecolor: '#4A5568',
+        automargin: true
     },
 };
 
@@ -142,7 +144,7 @@ function populateDashboard(data) {
     if (tables && tables.tipster_roi && tables.tipster_roi.length > 0) {
         createPlotCard('tipster-roi-leaderboard', 'Tipster ROI Leaderboard', 'grid-col-8 min-h-500');
         setTimeout(() => {
-            const roiData = { labels: tables.tipster_roi.map(t => t.Tipster), data: tables.tipster_roi.map(t => t.ROI) };
+            const roiData = { labels: tables.tipster_roi.map(t => t.Tipster), data: tables.tipster_roi.map(t => parseFloat(t.ROI).toFixed(2)) };
             renderBarChart(roiData, 'tipster-roi-leaderboard', { yaxis: { title: 'ROI (%)' }, color: VIBRANT_CATEGORICAL_PALETTE });
         }, 0);
     }
@@ -165,11 +167,10 @@ function populateDashboard(data) {
         setTimeout(() => {
             const driftersData = {
                 labels: charts.market_movers.labels_drifters,
-                data: charts.market_movers.data_drifters
+                data: charts.market_movers.data_drifters.map(d => parseFloat(d).toFixed(2))
             };
             renderBarChart(driftersData, 'market-drifters', { 
                 xaxis: { title: 'Odds Change (%)' },
-                yaxis: { automargin: true },
                 orientation: 'h',
                 color: '#E74C3C' // Red for negative movement (price drift)
             });
@@ -180,11 +181,10 @@ function populateDashboard(data) {
         setTimeout(() => {
             const steamersData = {
                 labels: charts.market_movers.labels_steamers,
-                data: charts.market_movers.data_steamers
+                data: charts.market_movers.data_steamers.map(d => parseFloat(d).toFixed(2))
             };
             renderBarChart(steamersData, 'market-steamers', { 
                 xaxis: { title: 'Odds Change (%)' },
-                yaxis: { automargin: true },
                 orientation: 'h',
                 color: '#2ECC71' // Green for positive movement (price steam)
             });
@@ -202,7 +202,7 @@ function populateDashboard(data) {
         setTimeout(() => {
             const chartData = {
                 labels: tables.most_traded_horses.map(h => h['Horse Name']),
-                data: tables.most_traded_horses.map(h => h.pptradedvol)
+                data: tables.most_traded_horses.map(h => parseFloat(h.pptradedvol).toFixed(2))
             };
             renderLollipopChart(chartData, 'most-traded-horses', { xaxis: { title: 'Traded Volume ($)' }});
         }, 0);
@@ -221,7 +221,6 @@ function populateDashboard(data) {
                 };
                 renderBarChart(ridesData, 'jockeys-by-rides', {
                     xaxis: { title: '# of Rides' },
-                    yaxis: { automargin: true },
                     orientation: 'h',
                     color: '#3498DB'
                 });
@@ -238,11 +237,10 @@ function populateDashboard(data) {
             setTimeout(() => {
                 const volumeData = {
                     labels: sortedByVolume.map(j => j.JockeyName),
-                    data: sortedByVolume.map(j => j.total_traded_volume)
+                    data: sortedByVolume.map(j => parseFloat(j.total_traded_volume).toFixed(2))
                 };
                 renderBarChart(volumeData, 'jockeys-by-volume', {
                     xaxis: { title: 'Total Traded Volume ($)' },
-                    yaxis: { automargin: true },
                     orientation: 'h',
                     color: '#9B59B6'
                 });
@@ -264,7 +262,6 @@ function populateDashboard(data) {
             };
             renderBarChart(chartData, 'top-jockeys-by-tips', { 
                 xaxis: { title: '# of Tips' }, 
-                yaxis: { automargin: true },
                 orientation: 'h',
                 color: '#F1C40F'
             });
@@ -281,7 +278,11 @@ function populateDashboard(data) {
     if (charts && charts.avg_prize_by_track && charts.avg_prize_by_track.labels.length > 0) {
         createPlotCard('avg-prize-by-track', 'Average Prize Money by Track', 'grid-col-8 min-h-500');
         setTimeout(() => {
-            renderBarChart(charts.avg_prize_by_track, 'avg-prize-by-track', { 
+            const chartData = {
+                labels: charts.avg_prize_by_track.labels,
+                data: charts.avg_prize_by_track.data.map(d => parseFloat(d).toFixed(2))
+            };
+            renderBarChart(chartData, 'avg-prize-by-track', { 
                 yaxis: { title: 'Average Prize Money ($)' },
                 color: VIBRANT_CATEGORICAL_PALETTE
             });
@@ -296,13 +297,21 @@ function populateDashboard(data) {
     if (charts && charts.barrier_performance && charts.barrier_performance.labels.length > 0) {
         createPlotCard('barrier-performance', 'Barrier Performance (Win Rate %)', 'grid-col-6 min-h-400');
         setTimeout(() => {
-            renderBarChart(charts.barrier_performance, 'barrier-performance', { yaxis: { title: 'Win Rate (%)' }, color: VIBRANT_CATEGORICAL_PALETTE });
+            const chartData = {
+                labels: charts.barrier_performance.labels,
+                data: charts.barrier_performance.data.map(d => parseFloat(d).toFixed(2))
+            };
+            renderBarChart(chartData, 'barrier-performance', { yaxis: { title: 'Win Rate (%)' }, color: VIBRANT_CATEGORICAL_PALETTE });
         }, 0);
     }
     if (charts && charts.odds_performance && charts.odds_performance.labels.length > 0) {
         createPlotCard('odds-performance', 'Odds vs. Performance (Win Rate %)', 'grid-col-6 min-h-400');
         setTimeout(() => {
-            renderBarChart(charts.odds_performance, 'odds-performance', { yaxis: { title: 'Win Rate (%)' }, color: VIBRANT_CATEGORICAL_PALETTE });
+            const chartData = {
+                labels: charts.odds_performance.labels,
+                data: charts.odds_performance.data.map(d => parseFloat(d).toFixed(2))
+            };
+            renderBarChart(chartData, 'odds-performance', { yaxis: { title: 'Win Rate (%)' }, color: VIBRANT_CATEGORICAL_PALETTE });
         }, 0);
     }
     if (charts && charts.field_size_distribution && charts.field_size_distribution.labels.length > 0) {
@@ -334,8 +343,9 @@ function renderKPIs(kpis) {
         
         let formattedValue = value;
         if (config.format === 'currency') formattedValue = `$${(value/1000).toFixed(1)}k`;
-        if (config.format === 'percent') formattedValue = `${value.toFixed(1)}%`;
+        if (config.format === 'percent') formattedValue = `${parseFloat(value).toFixed(2)}%`;
         if (config.format === 'number') formattedValue = value.toLocaleString();
+        if (typeof value === 'number' && !config.format) formattedValue = value.toFixed(2);
         
         const card = document.createElement('div');
         card.className = 'kpi-card';
@@ -356,8 +366,8 @@ function createPlotCard(id, title, gridClass) {
 function renderBarChart(data, elementId, options = {}) {
     if (!data || !data.labels || data.labels.length === 0) return;
     const sortedData = (options.orientation === 'h')
-        ? data.labels.map((label, i) => ({ label, value: data.data[i] })).sort((a, b) => a.value - b.value)
-        : { labels: data.labels, data: data.data };
+        ? data.labels.map((label, i) => ({ label, value: parseFloat(data.data[i]).toFixed(2) })).sort((a, b) => a.value - b.value)
+        : { labels: data.labels, data: data.data.map(d => parseFloat(d).toFixed(2)) };
 
     const plotData = [{
         x: options.orientation === 'h' ? sortedData.map(d => d.value) : sortedData.labels,
@@ -377,7 +387,7 @@ function renderPieChart(data, elementId, options = {}) {
     if (!data || !data.labels || data.labels.length === 0) return;
     const plotData = [{
         labels: data.labels,
-        values: data.data,
+        values: data.data.map(d => parseFloat(d).toFixed(2)),
         type: 'pie',
         hole: options.hole || 0,
         textinfo: 'percent', 
@@ -394,8 +404,8 @@ function renderPieChart(data, elementId, options = {}) {
 
 function renderGroupedBarChart(data, elementId, options = {}) {
     if (!data || !data.labels || data.labels.length === 0) return;
-    const trace1 = { x: data.labels, y: data.data1, name: data.name1, type: 'bar', marker: {color: VIBRANT_CATEGORICAL_PALETTE[0]}};
-    const trace2 = { x: data.labels, y: data.data2, name: data.name2, type: 'bar', marker: {color: VIBRANT_CATEGORICAL_PALETTE[1]}};
+    const trace1 = { x: data.labels, y: data.data1.map(d => parseFloat(d).toFixed(2)), name: data.name1, type: 'bar', marker: {color: VIBRANT_CATEGORICAL_PALETTE[0]}};
+    const trace2 = { x: data.labels, y: data.data2.map(d => parseFloat(d).toFixed(2)), name: data.name2, type: 'bar', marker: {color: VIBRANT_CATEGORICAL_PALETTE[1]}};
     const plotData = [trace1, trace2];
     const layout = { ...plotlyLayoutConfig, ...options, barmode: 'group', title: '' };
     Plotly.newPlot(elementId, plotData, layout, {responsive: true});
@@ -405,7 +415,7 @@ function renderAreaChart(data, elementId, options = {}) {
     if (!data || !data.labels || data.labels.length === 0) return;
     const plotData = [{
         x: data.labels,
-        y: data.data,
+        y: data.data.map(d => parseFloat(d).toFixed(2)),
         type: 'scatter',
         mode: 'lines',
         fill: 'tozeroy',
@@ -418,7 +428,7 @@ function renderAreaChart(data, elementId, options = {}) {
 
 function renderLollipopChart(data, elementId, options = {}) {
     if (!data || !data.labels || data.labels.length === 0) return;
-    const sortedData = data.labels.map((label, i) => ({ label, value: data.data[i] })).sort((a, b) => a.value - b.value);
+    const sortedData = data.labels.map((label, i) => ({ label, value: parseFloat(data.data[i]).toFixed(2) })).sort((a, b) => a.value - b.value);
     
     const plotData = [{
         x: sortedData.map(d => d.value),
@@ -441,13 +451,13 @@ function renderLollipopChart(data, elementId, options = {}) {
             width: 2
         }
     }));
-    const layout = { ...plotlyLayoutConfig, ...options, title: '', shapes: shapes, yaxis: {automargin: true}, showlegend: false };
+    const layout = { ...plotlyLayoutConfig, ...options, title: '', shapes: shapes, showlegend: false };
     Plotly.newPlot(elementId, plotData, layout, {responsive: true});
 }
 
 function renderDotPlot(data, elementId, options = {}) {
     if (!data || !data.labels || data.labels.length === 0) return;
-    const sortedData = data.labels.map((label, i) => ({ label, value: data.data[i] })).sort((a, b) => a.value - b.value);
+    const sortedData = data.labels.map((label, i) => ({ label, value: parseFloat(data.data[i]).toFixed(2) })).sort((a, b) => a.value - b.value);
 
     const plotData = [{
         x: sortedData.map(d => d.value),
@@ -460,7 +470,7 @@ function renderDotPlot(data, elementId, options = {}) {
             symbol: 'diamond'
         }
     }];
-    const layout = { ...plotlyLayoutConfig, ...options, title: '', yaxis: {automargin: true}, showlegend: false };
+    const layout = { ...plotlyLayoutConfig, ...options, title: '', showlegend: false };
     Plotly.newPlot(elementId, plotData, layout, {responsive: true});
 }
 
@@ -565,8 +575,8 @@ async function downloadPDF() {
         
         let pdfLayout = { ...pdfPlotlyLayoutConfig };
         if (plotDiv.layout.orientation === 'h') {
-            pdfLayout.margin = { l: 120, r: 20, b: 40, t: 40 };
-            pdfLayout.yaxis = { ...pdfLayout.yaxis, automargin: false };
+            pdfLayout.margin = { l: 150, r: 20, b: 40, t: 40 }; // Increased margin for h-charts
+            pdfLayout.yaxis = { ...pdfLayout.yaxis, automargin: true }; // Ensure automargin is on for PDF too
         }
 
         try {
@@ -617,7 +627,7 @@ async function downloadPDF() {
                 startY: yPos,
                 head: head,
                 body: body,
-                theme: 'striped',
+                theme: 'grid',
                 styles: {
                     fillColor: '#2D3748',
                     textColor: '#E2E8F0',
@@ -628,6 +638,9 @@ async function downloadPDF() {
                     textColor: '#1A202C',
                     fontStyle: 'bold'
                 },
+                alternateRowStyles: {
+                    fillColor: '#1A202C'
+                }
             });
             yPos = doc.autoTable.previous.finalY + 10;
             renderedTables.add(tableKey);

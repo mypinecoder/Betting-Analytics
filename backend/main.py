@@ -130,6 +130,10 @@ def clean_and_standardize_data(dataframes: Dict) -> Dict:
             prices_df['Track'] = prices_df['Track'].replace(track_name_map)
             prices_df = prices_df.rename(columns={'selection_name': 'Horse Name'})
             
+            # FIX: Remove leading numbers and dots from horse names
+            if 'Horse Name' in prices_df.columns:
+                prices_df['Horse Name'] = prices_df['Horse Name'].str.replace(r'^\d+\.\s*', '', regex=True)
+
             if 'event_name' in prices_df.columns:
                 prices_df['Race'] = prices_df['event_name'].str.extract(r'R(\d+)').astype(float)
             
