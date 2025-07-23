@@ -10,7 +10,7 @@ const VIBRANT_SEQUENTIAL_SCALE = 'Viridis';
 const plotlyLayoutConfig = {
     font: {
         family: 'Poppins, sans-serif',
-        color: '#E2E8F0'
+        color: '#E2E8F0' // Dark theme text
     },
     paper_bgcolor: 'rgba(0,0,0,0)',
     plot_bgcolor: 'rgba(0,0,0,0)',
@@ -32,11 +32,30 @@ const plotlyLayoutConfig = {
     }
 };
 
-// --- Event Listeners & UI (Unchanged) ---
+const pdfPlotlyLayoutConfig = {
+    ...plotlyLayoutConfig,
+    font: { ...plotlyLayoutConfig.font, color: '#1A202C' }, // Light theme text for PDF
+    paper_bgcolor: '#FFFFFF',
+    plot_bgcolor: '#FFFFFF',
+     xaxis: {
+        gridcolor: '#dee2e6',
+        zerolinecolor: '#dee2e6'
+    },
+    yaxis: {
+        gridcolor: '#dee2e6',
+        zerolinecolor: '#dee2e6'
+    },
+};
+
+
+// --- Event Listeners & UI ---
 document.addEventListener('DOMContentLoaded', () => {
     initializeUploadArea();
     const analyzeBtn = document.getElementById('analyze-btn');
     if(analyzeBtn) analyzeBtn.addEventListener('click', analyzeData);
+
+    const downloadBtn = document.getElementById('download-pdf-btn');
+    if(downloadBtn) downloadBtn.addEventListener('click', downloadPDF);
 });
 
 function initializeUploadArea() {
@@ -253,7 +272,7 @@ function populateDashboard(data) {
     }
 }
 
-// --- KPI Rendering (Unchanged) ---
+// --- KPI Rendering ---
 function renderKPIs(kpis) {
     if (!kpis) return;
     const kpiGrid = document.getElementById('kpi-grid');
@@ -448,4 +467,121 @@ function renderRadialBarChart(data, elementId) {
         }
     };
     Plotly.newPlot(elementId, plotData, layout, {responsive: true});
+}
+
+// --- PDF Download Functionality ---
+async function downloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const spinner = document.getElementById('loading-spinner');
+    spinner.classList.remove('hidden');
+
+    let yPos = 15;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 10;
+
+    // --- Helper function to add new page if content overflows ---
+    const checkPageBreak = (spaceNeeded) => {
+        if (yPos + spaceNeeded > pageHeight - margin) {
+            doc.addPage();
+            yPos = 15;
+        }
+    };
+
+    // --- Title ---
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Betting Performance Analysis Report', doc.internal.pageSize.width / 2, yPos, { align: 'center' });
+    yPos += 10;
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPos, doc.internal.pageSize.width - margin, yPos);
+    yPos += 10;
+
+    // --- Introduction Text ---
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const introText = 'This report provides a comprehensive analysis of the uploaded betting data. It covers key performance indicators, tipster performance, market dynamics, and various factor analyses to uncover actionable insights.';
+    const splitIntro = doc.splitTextToSize(introText, doc.internal.pageSize.width - margin * 2);
+    doc.text(splitIntro, margin, yPos);
+    yPos += (splitIntro.length * 5) + 10;
+
+
+    // --- KPIs Section ---
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Key Performance Indicators', margin, yPos);
+    yPos += 8;
+
+    const kpiCards = document.querySelectorAll('#kpi-grid .kpi-card');
+    const kpiBody = [];
+    kpiCards.forEach(card => {
+        const label = card.querySelector('.kpi-label').innerText.trim();
+        const value = card.querySelector('.kpi-value').innerText.trim();
+        kpiBody.push([label, value]);
+    });
+
+    if (kpiBody.length > 0) {
+        doc.autoTable({
+            startY: yPos,
+            head: [['Metric', 'Value']],
+            body: kpiBody,
+            theme: 'grid',
+            headStyles: { fillColor: [44, 62, 80] },
+            didDrawPage: (data) => { yPos = data.cursor.y + 5; }
+        });
+    }
+
+    // --- Charts and Tables Section ---
+    const plotCards = document.querySelectorAll('.plot-card');
+    
+    for (const card of plotCards) {
+        const title = card.querySelector('.plot-title').innerText;
+        const plotDivId = card.querySelector('div[id]').id;
+        const plotDiv = document.getElementById(plotDivId);
+
+        checkPageBreak(80); // Estimate space for title + chart
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(title, margin, yPos);
+        yPos += 8;
+
+        try {
+            // Use light theme for PDF charts
+            await Plotly.update(plotDiv, {}, pdfPlotlyLayoutConfig);
+
+            const imgData = await Plotly.toImage(plotDiv, { format: 'png', width: 800, height: 450 });
+            const imgWidth = doc.internal.pageSize.width - margin * 2;
+            const imgHeight = (imgWidth * 450) / 800;
+            
+            checkPageBreak(imgHeight + 10);
+            doc.addImage(imgData, 'PNG', margin, yPos, imgWidth, imgHeight);
+            yPos += imgHeight + 15;
+
+            // Revert chart to dark theme for the UI
+            await Plotly.update(plotDiv, {}, plotlyLayoutConfig);
+
+        } catch (err) {
+            console.error(`Could not render chart ${title} to PDF:`, err);
+            doc.setFont('helvetica', 'italic');
+            doc.text('Chart could not be rendered.', margin, yPos);
+            yPos += 15;
+        }
+
+        // Add corresponding table data if available
+        if (title === 'Tipster ROI Leaderboard' && analysisData.tables.tipster_roi) {
+            checkPageBreak(40);
+             doc.autoTable({
+                startY: yPos,
+                head: [Object.keys(analysisData.tables.tipster_roi[0])],
+                body: analysisData.tables.tipster_roi.map(row => Object.values(row).map(val => typeof val === 'number' ? val.toFixed(2) : val)),
+                theme: 'striped',
+                headStyles: { fillColor: [44, 62, 80] },
+                didDrawPage: (data) => { yPos = data.cursor.y + 10; }
+            });
+        }
+    }
+    
+    doc.save('Betting-Performance-Report.pdf');
+    spinner.classList.add('hidden');
 }
