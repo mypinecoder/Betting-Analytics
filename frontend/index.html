@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
     <div class="background-glow-1"></div>
     <div class="background-glow-2"></div>
 
@@ -26,11 +27,15 @@
                     <i class="fas fa-chart-pie"></i>
                     <span>Betting Insights</span>
                 </div>
+                <a href="support.html" class="support-link">
+                    <i class="fas fa-life-ring"></i> Support Certificate
+                </a>
             </nav>
         </div>
     </header>
 
     <main class="container">
+        <!-- Upload -->
         <section id="upload-section" class="upload-section">
             <div class="upload-content">
                 <h1>Next-Gen Betting Analysis</h1>
@@ -54,24 +59,28 @@
             <p>Analyzing Data...</p>
         </div>
 
+        <!-- Dashboard -->
         <section id="dashboard" class="dashboard-section hidden">
             <div class="dashboard-header">
                 <h2>Performance Dashboard</h2>
-                 <button id="download-pdf-btn" class="download-btn">
+                <button id="download-pdf-btn" class="download-btn">
                     <i class="fas fa-file-pdf"></i> Download Report
                 </button>
             </div>
+
+            <!-- Daily Summary Table -->
+            <div id="daily-summary-table" class="daily-summary-table"></div>
+
+            <!-- KPI Cards (future use) -->
             <div id="kpi-grid" class="kpi-grid"></div>
-            <div id="dashboard-grid" class="dashboard-grid">
-                </div>
+
+            <!-- Fixed Core Charts -->
+            <div id="dashboard-grid" class="dashboard-grid"></div>
         </section>
     </main>
 
     <footer>
         <p>Made with ❤️ by <a href="https://pinecoder.in" target="_blank" rel="noopener noreferrer" class="footer-link">pinecoder.in</a></p>
-        <a href="support.html" class="support-link">
-            <i class="fas fa-life-ring"></i> Support Certificate
-        </a>
     </footer>
 
     <script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>

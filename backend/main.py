@@ -1,18 +1,20 @@
-import pandas as pd
-import numpy as np
+# -----------------------------  
+# main.py (fully patched)  
+# -----------------------------
+from typing import Dict, List
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from typing import List, Dict
-import io
-import re
-import traceback
-import math
-import os
-import logging
+from fastapi.staticfiles import StaticFiles
 
-# --- Setup ---
+import pandas as pd
+import numpy as np
+import io, math, os, logging, traceback, re, unicodedata
+from datetime import datetime
+from difflib import get_close_matches
+
+
+# ---------- FastAPI setup ----------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -26,391 +28,411 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ---------- Utilities ----------
 def clean_for_json(data):
-    """Recursively cleans a data structure to make it JSON-compliant."""
-    if isinstance(data, list):
-        return [clean_for_json(item) for item in data]
-    if isinstance(data, dict):
-        return {key: clean_for_json(value) for key, value in data.items()}
-    if isinstance(data, float) and (math.isnan(data) or math.isinf(data)):
-        return None
-    if pd.isna(data):
-        return None
+    """Make numpy/pandas types serializable."""
+    if isinstance(data, (np.int64, np.int32)): return int(data)
+    if isinstance(data, (np.float64, np.float32)):
+        return float(data) if not (math.isnan(data) or math.isinf(data)) else 0
+    if isinstance(data, list): return [clean_for_json(x) for x in data]
+    if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
+    if pd.isna(data): return 0
     return data
 
-def parse_odds_string(odds_str):
-    """Parse odds from string format to float"""
-    if pd.isna(odds_str) or odds_str == 'N/A':
-        return None
-    try:
-        return float(str(odds_str))
-    except (ValueError, TypeError):
-        return None
 
-def parse_prize_money(prize_str):
-    """Parse prize money from string format to float"""
-    if pd.isna(prize_str):
-        return 0
-    prize_str = str(prize_str).replace('$', '').replace(',', '').replace('k', '000')
-    try:
-        return float(prize_str)
-    except (ValueError, TypeError):
-        return 0
+_SPONSOR_WORDS = {"ladbrokes","sportsbet","bet365","tabtouch","tab","william hill",
+                  "unibet","betfair","palmerbet","neds","bluebet","pointbet","pointsbet","sportsbet-ballarat"}
 
-def clean_and_standardize_data(dataframes: Dict) -> Dict:
-    """Cleans and standardizes each individual DataFrame."""
-    track_name_map = {
-        "Ladbrokes Cannon Park": "Cairns",
-        "Sportsbet-Ballarat Synthetic": "Ballarat Synthetic"
-    }
+def _strip_accents_punct(s):
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    s = re.sub(r"[^\w\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
 
-    if 'tips' in dataframes:
-        tips_df = dataframes['tips'].copy()
-        
-        new_cols = {}
-        for col in tips_df.columns:
-            if 'Selection' in col:
-                parts = col.split(' ')
-                if len(parts) > 1:
-                    pos = parts[0]
-                    stub = ' '.join(parts[1:])
-                    new_cols[col] = f"{stub} {pos}"
-        tips_df.rename(columns=new_cols, inplace=True)
+def _remove_country_suffix(s):
+    return re.sub(r"\s*\((?:[A-Z]{2,3})\)\s*$", "", s)
 
-        id_vars = ['Tip Website', 'Scrape Date', 'Track', 'Race']
-        
-        for var in id_vars:
-            if var not in tips_df.columns:
-                tips_df[var] = f'Unknown {var}'
+def token_fingerprint(s):
+    s = s.lower().strip()
+    s = _remove_country_suffix(s)
+    s = re.sub(r"^\d+\.?\s*", "", s)
+    s = _strip_accents_punct(s)
+    tokens = [t for t in s.split() if t not in _SPONSOR_WORDS]
+    return " ".join(sorted(tokens))
 
-        stubnames = ['Selection', 'Selection Name']
-        if any(any(s in col for col in tips_df.columns) for s in stubnames):
-            tips_long = pd.wide_to_long(
-                tips_df,
-                stubnames=stubnames,
-                i=id_vars,
-                j='PositionStr',
-                sep=' ',
-                suffix=r'\w+'
-            ).reset_index()
+def standardize_track(name):
+    if not isinstance(name, str): return name
+    s = name.lower().strip()
+    is_synth = "synthetic" in s
+    s = re.sub(r"\s*\(.*?\)\s*", " ", s)
+    for w in _SPONSOR_WORDS: s = s.replace(w, " ")
+    s = _strip_accents_punct(s).lower()
+    replacements = {"ladbrokes cannon park":"cannon park", "cannon park":"cairns"}
+    s = replacements.get(s, s)
+    s = re.sub(r"\s+", " ", s).strip()
+    if is_synth and "ballarat" in s and "synthetic" not in s:
+        s = f"{s} synthetic"
+    return s
 
-            pos_map = {'First': 1, 'Second': 2, 'Third': 3, 'Fourth': 4}
-            tips_long['Position'] = tips_long['PositionStr'].map(pos_map)
-            
-            tips_long.dropna(subset=['Position'], inplace=True)
-            tips_long['Position'] = tips_long['Position'].astype(int)
+def standardize_horse(name):
+    if not isinstance(name, str): return name
+    s = name.strip()
+    s = _remove_country_suffix(s)
+    s = re.sub(r"^\d+\.?\s*", "", s)
+    s = _strip_accents_punct(s).lower()
+    return re.sub(r"\s+", " ", s).strip()
 
-            tips_long = tips_long.rename(columns={'Selection Name': 'Horse Name', 'Selection': 'Selection Number'})
-            
-            tips_long.drop(columns=['PositionStr'], inplace=True)
-            tips_long['Track'] = tips_long['Track'].replace(track_name_map)
-            dataframes['tips'] = tips_long
+def extract_race_num(x):
+    if pd.isna(x): return np.nan
+    s = str(x)
+    m = re.search(r"(?i)\bR(?:ace)?\s*0*([1-9]\d*)\b", s)
+    if not m: m = re.search(r"\b([1-9]\d*)\b", s)
+    return float(m.group(1)) if m else np.nan
+
+def robust_to_datetime(series, dayfirst=False):
+    def _try(ts, **kw): return pd.to_datetime(ts, errors="coerce", **kw)
+    out = _try(series, dayfirst=dayfirst, utc=False).dt.date
+    mask = pd.isna(out)
+    if mask.mean() > 0.3:
+        alt = _try(series[mask], dayfirst=not dayfirst, utc=False).dt.date
+        out.loc[mask] = alt
+    mask = pd.isna(out)
+    if mask.any():
+        num = pd.to_numeric(series[mask], errors="coerce")
+        sec = _try(num, unit="s", utc=False).dt.date
+        out.loc[mask & sec.notna()] = sec
+        ms = _try(num, unit="ms", utc=False).dt.date
+        out.loc[mask & ms.notna()] = ms
+    return out
+
+def as_numeric_safe(series):
+    x = pd.to_numeric(series, errors="coerce")
+    return x.replace([np.inf, -np.inf], np.nan)
+
+def map_fuzzy_to_known(values, known, cutoff=0.94):
+    known_set = set(known)
+    out = []
+    for v in values.fillna(""):
+        if v in known_set: out.append(v)
         else:
-            dataframes['tips'] = pd.DataFrame(columns=id_vars + ['Position', 'Horse Name', 'Selection Number'])
+            match = get_close_matches(v, known, n=1, cutoff=cutoff)
+            out.append(match[0] if match else v)
+    return pd.Series(out, index=values.index)
 
-    if 'race_data' in dataframes:
-        race_data_df = dataframes['race_data'].copy()
-        race_data_df = race_data_df.rename(columns={
-            'HorseName': 'Horse Name', 'RaceTrack': 'Track', 'RaceNum': 'Race'
+# ---------- Cleaning / matching ----------
+def clean_and_standardize_data(dataframes: Dict) -> Dict:
+    dfs = {}
+    if "tips" in dataframes:
+        df = dataframes["tips"].copy()
+        df.rename(columns=lambda c: c.strip(), inplace=True)
+        if "Track" not in df.columns and "track" in df.columns:
+            df.rename(columns={"track":"Track"}, inplace=True)
+        if "First Selection Name" in df.columns and "Horse Name" not in df.columns:
+            df["Horse Name"] = df["First Selection Name"]
+
+        date_col = "Scrape Date" if "Scrape Date" in df.columns else ("Date" if "Date" in df.columns else None)
+        if not date_col: raise HTTPException(status_code=400, detail="Tips file missing date column.")
+        df["Date"] = robust_to_datetime(df[date_col])
+        df["Track"] = df["Track"].astype(str).map(standardize_track)
+        df["Horse Name"] = df["Horse Name"].astype(str).map(standardize_horse)
+        df["race_num"] = df["Race"].apply(extract_race_num) if "Race" in df.columns else np.nan
+        df["track_fp"] = df["Track"].map(token_fingerprint)
+        df["horse_fp"] = df["Horse Name"].map(token_fingerprint)
+        df["Tip Website"] = df.get("Tip Website", "Unknown")
+        df["tip_id"] = np.arange(len(df))
+        dfs["tips"] = df[["tip_id", "Date", "Tip Website", "Track", "Horse Name", "race_num", "track_fp", "horse_fp"]]
+
+    if "race_data" in dataframes:
+        df = dataframes["race_data"].copy()
+        df.rename(columns=lambda c: c.strip(), inplace=True)
+        ren = {"HorseName":"Horse Name","RaceTrack":"Track","RaceNum":"Race"}
+        df.rename(columns={k:v for k,v in ren.items() if k in df.columns}, inplace=True)
+        df["Track"] = df["Track"].astype(str).map(standardize_track)
+        df["Horse Name"] = df["Horse Name"].astype(str).map(standardize_horse)
+        df["race_num"] = df["Race"].apply(extract_race_num) if "Race" in df.columns else np.nan
+        df["BestOdds"] = as_numeric_safe(df.get("BestOdds", np.nan))
+        df["track_fp"] = df["Track"].map(token_fingerprint)
+        df["horse_fp"] = df["Horse Name"].map(token_fingerprint)
+        df["field_size"] = df.groupby(["track_fp","race_num"])["Horse Name"].transform("count")
+        dfs["race_data"] = df[["Track","Horse Name","race_num","BestOdds","field_size","track_fp","horse_fp"]]
+
+    if "win_prices" in dataframes:
+        df = dataframes["win_prices"].copy()
+        df.rename(columns=lambda c:c.strip(), inplace=True)
+        if "selection_name" in df.columns and "Horse Name" not in df.columns:
+            df.rename(columns={"selection_name":"Horse Name"}, inplace=True)
+        if "menu_hint" in df.columns:
+            df["Track"] = df["menu_hint"].astype(str).str.split(r" \(").str[0].map(standardize_track)
+        elif "RaceTrack" in df.columns:
+            df["Track"] = df["RaceTrack"].astype(str).map(standardize_track)
+        else:
+            df["Track"] = df.get("Track","").astype(str).map(standardize_track)
+
+        if "event_name" in df.columns:
+            df["race_num"] = df["event_name"].apply(extract_race_num)
+        elif "Race" in df.columns:
+            df["race_num"] = df["Race"].apply(extract_race_num)
+        else:
+            df["race_num"] = np.nan
+
+        df["Horse Name"] = df["Horse Name"].astype(str).str.replace(r"^\d+\.?\s*","", regex=True).map(standardize_horse)
+        date_source=None
+        for cand in ["event_dt","event_date","event_time","marketStartTime","Date"]:
+            if cand in df.columns: date_source=cand; break
+        if not date_source: raise HTTPException(status_code=400, detail="Win prices file missing an event date column.")
+
+        df["Date"] = robust_to_datetime(df[date_source], dayfirst=True)
+        for col in ["bsp","morningwap","win_lose"]:
+            if col in df.columns: df[col]=as_numeric_safe(df[col])
+        if "win_lose" in df.columns and df["win_lose"].isna().mean()>0.5:
+            wl=df["win_lose"].astype(str).str.lower()
+            df["win_lose"]=np.where(wl.str.contains("win|1|true"),1,
+                                 np.where(wl.str.contains("lose|0|false"),0,np.nan))
+        df["track_fp"]=df["Track"].map(token_fingerprint)
+        df["horse_fp"]=df["Horse Name"].map(token_fingerprint)
+        for c in ["bsp","morningwap"]:
+            df.loc[df[c]<=1,c]=np.nan
+        dfs["win_prices"]=df[["Date","Track","Horse Name","race_num","bsp","morningwap","win_lose","track_fp","horse_fp"]]
+
+    # fuzzy match to align dataframes
+    if "tips" in dfs:
+        t=dfs["tips"]
+        known_tracks=sorted(t["track_fp"].dropna().unique().tolist())
+        known_horses=sorted(t["horse_fp"].dropna().unique().tolist())
+        if "race_data" in dfs:
+            rd=dfs["race_data"].copy()
+            rd["track_fp"]=map_fuzzy_to_known(rd["track_fp"],known_tracks,cutoff=0.93)
+            rd["horse_fp"]=map_fuzzy_to_known(rd["horse_fp"],known_horses,cutoff=0.97)
+            dfs["race_data"]=rd
+        if "win_prices" in dfs:
+            wp=dfs["win_prices"].copy()
+            wp["track_fp"]=map_fuzzy_to_known(wp["track_fp"],known_tracks,cutoff=0.93)
+            wp["horse_fp"]=map_fuzzy_to_known(wp["horse_fp"],known_horses,cutoff=0.97)
+            dfs["win_prices"]=wp
+    return dfs
+# ----------------------------
+# Match win prices to tips
+# ----------------------------
+def match_win_prices_to_tips(tips_df: pd.DataFrame, win_df: pd.DataFrame, date_window_days:int=2) -> pd.DataFrame:
+    if win_df is None or win_df.empty:
+        tmp = tips_df.copy()
+        for c in ["bsp","morningwap","win_lose","Date_win"]: tmp[c]=np.nan
+        return tmp
+
+    tips = tips_df.rename(columns={"Date":"Date_tip"})
+    merged = tips.merge(win_df.rename(columns={"Date":"Date_win"}),
+                        on=["track_fp","race_num","horse_fp"], how="left")
+    if merged["Date_win"].isna().all(): return merged
+
+    dd = (pd.to_datetime(merged["Date_win"]) - pd.to_datetime(merged["Date_tip"]))
+    merged["date_diff_abs"]=dd.abs().dt.days
+    merged["within_window"] = merged["date_diff_abs"]<=date_window_days
+    penalty = (~merged["within_window"]).astype(int)*1000
+    merged["_score"] = merged["date_diff_abs"].fillna(9999)+penalty
+    idx = merged.groupby("tip_id")["_score"].idxmin()
+    best=merged.loc[idx].copy()
+    best.drop(columns=["_score","date_diff_abs","within_window"], inplace=True, errors="ignore")
+    return best
+
+# ----------------------------
+# Main Analysis
+# ----------------------------
+def perform_full_analysis(dataframes: Dict) -> Dict:
+    response = {"daily_summary": [], "charts": {}}
+    tips_df, race_data_df, win_prices_df = (dataframes.get(k) for k in ("tips","race_data","win_prices"))
+
+    chart_keys = [
+        "cumulative_profit","rolling_roi","roi_by_tipster","roi_by_odds",
+        "price_movement_histogram","clv_trend","win_rate_vs_field_size"
+    ]
+    for k in chart_keys:
+        response["charts"][k] = (
+            {"labels": [], "datasets": []}
+            if k in {"cumulative_profit","rolling_roi","clv_trend"}
+            else {"labels": [], "data": []}
+        )
+
+    if tips_df is None or tips_df.empty:
+        return response
+
+    # Merge race data
+    if race_data_df is not None and not race_data_df.empty:
+        merged = tips_df.merge(
+            race_data_df[["track_fp","race_num","horse_fp","BestOdds","field_size"]],
+            on=["track_fp","race_num","horse_fp"], how="left"
+        )
+    else:
+        merged = tips_df.copy()
+        merged["BestOdds"] = np.nan
+        merged["field_size"] = np.nan
+
+    # Merge win prices
+    if win_prices_df is not None and not win_prices_df.empty:
+        merged = match_win_prices_to_tips(merged, win_prices_df)
+    else:
+        merged["bsp"] = merged["morningwap"] = merged["win_lose"] = merged["Date_win"] = np.nan
+
+    merged["Date"] = pd.to_datetime(merged["Date_win"]).dt.date
+    merged["Date"] = merged["Date"].fillna(pd.to_datetime(merged["Date"]).dt.date)
+    for c in ["bsp","morningwap","BestOdds","win_lose","field_size"]:
+        merged[c] = as_numeric_safe(merged.get(c, np.nan))
+    merged["win_lose"] = merged["win_lose"].fillna(0)
+    merged["Profit"] = np.where(merged["win_lose"]==1, merged["bsp"], 0) - 1
+    merged.loc[merged["bsp"].isna(),"Profit"] = -1
+
+    # ----- Daily Summary -----
+    for d, g in merged.groupby("Date", dropna=False):
+        bets = len(g)
+        rtn  = g.loc[g["win_lose"]==1,"bsp"].fillna(0).sum()
+        denom= max(bets,1)
+        valid= (g["bsp"]>1)&(g["BestOdds"]>1)
+        response["daily_summary"].append({
+            "Date": str(d),
+            "Bets Placed": bets,
+            "Units Staked": bets,
+            "Units Returned": float(rtn),
+            "ROI %": (float(rtn - bets)/denom)*100,
+            "Win Rate %": g["win_lose"].fillna(0).mean()*100,
+            "Avg Odds": float(g["bsp"].dropna().mean()) if not pd.isna(g["bsp"].dropna().mean()) else 0,
+            "CLV": float((((g.loc[valid,"bsp"]/g.loc[valid,"BestOdds"])-1).mean()*100) if valid.any() else 0),
+            "Drifters %": float(((g["bsp"]>g["morningwap"]).sum()/max((g["morningwap"]>1).sum(),1))*100 if "morningwap" in g.columns else 0),
+            "Steamers %": float(((g["bsp"]<g["morningwap"]).sum()/max((g["morningwap"]>1).sum(),1))*100 if "morningwap" in g.columns else 0),
         })
-        if 'Race' in race_data_df.columns:
-            race_data_df['Race'] = race_data_df['Race'].astype(str).str.replace('R', '', regex=False).astype(int)
-        race_data_df['Track'] = race_data_df['Track'].replace(track_name_map)
-        
-        race_data_df['BestOdds'] = race_data_df['BestOdds'].apply(parse_odds_string)
-        race_data_df['Prize_Numeric'] = race_data_df['Prize'].apply(parse_prize_money)
-        
-        dataframes['race_data'] = race_data_df
 
-    for price_type in ['win_prices', 'place_prices']:
-        if price_type in dataframes:
-            prices_df = dataframes[price_type].copy()
-            if 'menu_hint' in prices_df.columns:
-                prices_df['Track'] = prices_df['menu_hint'].str.split(r' \(').str[0]
-            prices_df['Track'] = prices_df['Track'].replace(track_name_map)
-            prices_df = prices_df.rename(columns={'selection_name': 'Horse Name'})
-            
-            if 'Horse Name' in prices_df.columns:
-                prices_df['Horse Name'] = prices_df['Horse Name'].str.replace(r'^\d+\.\s*', '', regex=True)
+    merged["Date"]=pd.to_datetime(merged["Date"]).dt.date
 
-            if 'event_name' in prices_df.columns:
-                prices_df['Race'] = prices_df['event_name'].str.extract(r'R(\d+)').astype(float)
-            
-            numeric_cols = ['bsp', 'ppwap', 'morningwap', 'ppmax', 'ppmin', 'morningtradedvol', 'pptradedvol', 'iptradedvol', 'win_lose']
-            for col in numeric_cols:
-                if col in prices_df.columns:
-                    prices_df[col] = pd.to_numeric(prices_df[col], errors='coerce')
-            
-            dataframes[price_type] = prices_df
-            
-    return dataframes
-
-def analyze_market_movers(win_prices_df):
-    df = win_prices_df[['Horse Name', 'morningwap', 'bsp']].copy()
-    df.dropna(subset=['morningwap', 'bsp'], inplace=True)
-    df = df[df['morningwap'] > 0]
-    if df.empty: return None
-    df['change_pct'] = ((df['bsp'] - df['morningwap']) / df['morningwap']) * 100
-    
-    drifters = df.nlargest(5, 'change_pct')
-    steamers = df.nsmallest(5, 'change_pct')
-    
-    return {
-        'labels_drifters': drifters['Horse Name'].tolist(), 
-        'data_drifters': drifters['change_pct'].tolist(),
-        'labels_steamers': steamers['Horse Name'].tolist(),
-        'data_steamers': steamers['change_pct'].tolist()
+    # ----- 1) Cumulative Profit -----
+    dp = merged.groupby(["Tip Website","Date"], as_index=False)["Profit"].sum().sort_values(["Tip Website","Date"])
+    pivot = dp.pivot(index="Date", columns="Tip Website", values="Profit").fillna(0).cumsum()
+    response["charts"]["cumulative_profit"]={
+        "labels":[d.strftime("%Y-%m-%d") for d in pivot.index],
+        "datasets":[{"name":c,"data":pivot[c].round(4).tolist()} for c in pivot.columns]
     }
 
-def analyze_most_traded(win_prices_df):
-    races_df = win_prices_df.groupby('event_name')['pptradedvol'].sum().nlargest(5).sort_values()
-    most_traded_races = {'labels': races_df.index.tolist(), 'data': races_df.values.tolist()}
-    horses_df = win_prices_df.nlargest(10, 'pptradedvol')[['Horse Name', 'event_name', 'pptradedvol']]
-    most_traded_horses = horses_df.to_dict(orient='records')
-    return most_traded_races, most_traded_horses
+    # ----- 2) 30-Day Rolling ROI -----
+    ds=merged.groupby(["Tip Website","Date"]).agg(bets=("Profit","size"),rtn=("bsp",lambda s:s.fillna(0).sum())).reset_index()
+    ds["roi"]=(ds["rtn"]-ds["bets"])/ds["bets"].replace(0,np.nan)
+    out=[]
+    for tip,g in ds.groupby("Tip Website"):
+        g=g.sort_values("Date").set_index("Date")
+        idx=pd.date_range(g.index.min(), g.index.max(), freq="D")
+        g=g.reindex(idx)
+        g["roi"]=g["roi"].fillna(0)
+        g["roi30"]=g["roi"].rolling(30,min_periods=1).mean()
+        g["Tip Website"]=tip; g["Date"]=g.index.date
+        out.append(g.reset_index(drop=True)[["Tip Website","Date","roi30"]])
+    if out:
+        rr=pd.concat(out)
+        p=rr.pivot(index="Date", columns="Tip Website", values="roi30").ffill().fillna(0)
+        response["charts"]["rolling_roi"]={
+            "labels":[d.strftime("%Y-%m-%d") for d in p.index],
+            "datasets":[{"name":c,"data":(p[c]*100).round(4).tolist()} for c in p.columns]
+        }
 
-def analyze_best_odds_provider(race_data_df):
-    if 'OddsSource' not in race_data_df.columns: return None
-    provider_counts = race_data_df['OddsSource'].value_counts()
-    return {'labels': provider_counts.index.tolist(), 'data': provider_counts.values.tolist()}
+    # ----- 3) ROI by tipster -----
+    rbt=merged.groupby("Tip Website")["Profit"].mean().fillna(0)*100
+    response["charts"]["roi_by_tipster"]={"labels":rbt.index.tolist(), "data":rbt.round(4).tolist()}
 
-def analyze_jockey_performance(race_data_df, win_prices_df):
-    if 'JockeyName' not in race_data_df.columns:
-        return None
-        
-    jockey_stats = race_data_df.groupby('JockeyName').agg(
-        num_rides=('JockeyName', 'count'),
-        avg_odds=('BestOdds', 'mean')
-    ).reset_index()
+    # ----- 4) ROI by odds bin (fixed categorical index bug)
+    merged["odds_bin"]=pd.cut(
+        merged["bsp"].where(merged["bsp"]>1),
+        bins=[1,3,5,10,20,50,1000],
+        labels=["$1-3","$3-5","$5-10","$10-20","$20-50","$50+"],
+        include_lowest=True
+    )
+    rob=merged.groupby("odds_bin")["Profit"].mean()
+    rob.index = rob.index.astype(str)   # squash CategoricalIndex
+    rob=rob.fillna(0)*100
+    response["charts"]["roi_by_odds"]={
+        "labels":rob.index.tolist(),"data":rob.round(4).tolist()
+    }
 
-    if not win_prices_df.empty and 'win_lose' in win_prices_df.columns:
-        merged_for_wins = pd.merge(race_data_df, win_prices_df[['Horse Name', 'Track', 'win_lose', 'pptradedvol']], on=['Horse Name', 'Track'], how='left')
-        jockey_wins = merged_for_wins.groupby('JockeyName').agg(
-            wins=('win_lose', 'sum'),
-            total_traded_volume=('pptradedvol', 'sum')
-        ).reset_index()
-        jockey_stats = pd.merge(jockey_stats, jockey_wins, on='JockeyName', how='left')
-        jockey_stats['win_rate'] = (jockey_stats['wins'] / jockey_stats['num_rides'] * 100).fillna(0)
-    else:
-        jockey_stats['win_rate'] = 0
-        jockey_stats['total_traded_volume'] = 0
+    # ----- 5) Histogram: price movement -----
+    pm=(merged["bsp"]>1)&(merged["morningwap"]>1)
+    pmv=((merged.loc[pm,"bsp"]-merged.loc[pm,"morningwap"])/merged.loc[pm,"morningwap"]).astype(float)
+    response["charts"]["price_movement_histogram"]={"data":pmv.round(6).tolist()}
 
-    return jockey_stats.sort_values('num_rides', ascending=False).head(20).to_dict(orient='records')
+    # ----- 6) CLV Trend -----
+    valid=(merged["bsp"]>1)&(merged["BestOdds"]>1)
+    clvt=merged.loc[valid].groupby("Date").apply(
+        lambda g:((g["bsp"]/g["BestOdds"])-1).mean()*100
+    ).sort_index().fillna(0)
+    response["charts"]["clv_trend"]={
+        "labels":[d.strftime("%Y-%m-%d") for d in clvt.index],
+        "datasets":[{"name":"CLV","data":clvt.round(4).tolist()}]
+    }
 
-
-def analyze_tipster_strategy(tips_df, race_data_df):
-    first_selections = tips_df[tips_df['Position'] == 1].copy()
-    merged = pd.merge(first_selections, race_data_df[['Horse Name', 'Track', 'Race', 'BestOdds']], on=['Horse Name', 'Track', 'Race'], how='left')
-    merged.dropna(subset=['BestOdds'], inplace=True)
-    if merged.empty: return None
-    tipster_avg_odds = merged.groupby('Tip Website')['BestOdds'].mean().sort_values(ascending=False)
-    return {'labels': tipster_avg_odds.index.tolist(), 'data': tipster_avg_odds.values.tolist()}
-
-def calculate_roi(merged_df):
-    """Calculate ROI for tipsters if win/loss data is available."""
-    merged_df['win_lose'] = pd.to_numeric(merged_df['win_lose'], errors='coerce')
-    merged_df['bsp'] = pd.to_numeric(merged_df['bsp'], errors='coerce')
-    
-    valid_bets = merged_df.dropna(subset=['win_lose', 'bsp'])
-    if valid_bets.empty: return None
-
-    roi_data = []
-    for tipster in valid_bets['Tip Website'].unique():
-        tipster_tips = valid_bets[valid_bets['Tip Website'] == tipster]
-        total_bets = len(tipster_tips)
-        if total_bets == 0: continue
-
-        wins = tipster_tips[tipster_tips['win_lose'] == 1]
-        total_return = wins['bsp'].sum()
-        profit = total_return - total_bets
-        roi = (profit / total_bets * 100) if total_bets > 0 else 0
-        
-        roi_data.append({
-            'Tipster': tipster, 'Total Tips': total_bets, 'Winners': len(wins),
-            'Strike Rate': len(wins) / total_bets * 100, 'Profit/Loss': profit, 'ROI': roi
-        })
-    
-    return sorted(roi_data, key=lambda x: x['ROI'], reverse=True)
-
-
-def perform_full_analysis(dataframes: Dict) -> Dict:
-    """Performs a comprehensive analysis, dynamically including visuals based on available data."""
-    response = {"kpis": {}, "charts": {}, "tables": {}, "raw_data": {}}
-    
-    win_prices_df = dataframes.get('win_prices', pd.DataFrame())
-    race_data_df = dataframes.get('race_data', pd.DataFrame())
-    tips_df = dataframes.get('tips', pd.DataFrame())
-
-    # --- Merged DataFrame ---
-    merged_df = pd.DataFrame()
-    if not tips_df.empty:
-        merged_df = tips_df.copy()
-        merge_keys = ['Track', 'Horse Name', 'Race']
-        if not race_data_df.empty and all(k in merged_df.columns and k in race_data_df.columns for k in merge_keys):
-            merged_df = pd.merge(merged_df, race_data_df, on=merge_keys, how='left', suffixes=('', '_race'))
-        if not win_prices_df.empty and all(k in merged_df.columns and k in win_prices_df.columns for k in merge_keys):
-            merged_df = pd.merge(merged_df, win_prices_df, on=merge_keys, how='left', suffixes=('', '_win'))
-
-    # --- KPIs ---
-    if not tips_df.empty:
-        response["kpis"]["total_tips"] = len(tips_df)
-        response["kpis"]["total_tipsters"] = tips_df['Tip Website'].nunique()
-    if not race_data_df.empty:
-        response["kpis"]["total_races"] = race_data_df.groupby(['Track', 'Race']).ngroups
-        response["kpis"]["total_tracks"] = race_data_df['Track'].nunique()
-        response["kpis"]["average_field_size"] = round(race_data_df.groupby(['Track', 'Race'])['Horse Name'].count().mean(), 2)
-    if not win_prices_df.empty and 'pptradedvol' in win_prices_df.columns:
-        response["kpis"]["total_traded_volume"] = win_prices_df['pptradedvol'].sum()
-        drifters = win_prices_df[win_prices_df['bsp'] > win_prices_df['morningwap']].shape[0]
-        total_runners = win_prices_df.shape[0]
-        if total_runners > 0:
-            response["kpis"]["drifters_percent"] = round((drifters / total_runners) * 100, 2)
-
-    # --- Standalone & Merged Analysis ---
-    if not win_prices_df.empty:
-        if 'morningwap' in win_prices_df.columns and 'bsp' in win_prices_df.columns:
-            response["charts"]["market_movers"] = analyze_market_movers(win_prices_df)
-        if 'pptradedvol' in win_prices_df.columns:
-            races, horses = analyze_most_traded(win_prices_df)
-            response["charts"]["most_traded_races"] = races
-            response["tables"]["most_traded_horses"] = horses
-
-    if not race_data_df.empty:
-        if 'Prize_Numeric' in race_data_df.columns:
-            unique_races = race_data_df.drop_duplicates(subset=['Track', 'Race'])
-            avg_prize = unique_races.groupby('Track')['Prize_Numeric'].mean().round(0).sort_values(ascending=False)
-            response["charts"]["avg_prize_by_track"] = {'labels': avg_prize.index.tolist(), 'data': avg_prize.values.tolist()}
-        if 'OddsSource' in race_data_df.columns:
-            response["charts"]["best_odds_provider"] = analyze_best_odds_provider(race_data_df)
-        response["tables"]["jockey_performance"] = analyze_jockey_performance(race_data_df, win_prices_df)
-            
-    if not tips_df.empty:
-        tips_by_track = tips_df['Track'].value_counts()
-        response["charts"]["tips_by_track"] = {'labels': tips_by_track.index.tolist(), 'data': tips_by_track.values.tolist()}
-        tipster_share = tips_df['Tip Website'].value_counts()
-        response["charts"]["tipster_market_share"] = {'labels': tipster_share.index.tolist(), 'data': tipster_share.values.tolist()}
-        
-        if not race_data_df.empty and 'BestOdds' in race_data_df.columns:
-            response["charts"]["tipster_strategy"] = analyze_tipster_strategy(tips_df, race_data_df)
-
-    if not merged_df.empty:
-        if 'win_lose' in merged_df.columns and 'bsp' in merged_df.columns and merged_df['bsp'].notna().any():
-            response["tables"]["tipster_roi"] = calculate_roi(merged_df)
-
-        if 'Barrier' in merged_df.columns and 'win_lose' in merged_df.columns and merged_df['win_lose'].notna().any():
-            barrier_stats = merged_df.groupby('Barrier').agg(tips=('Barrier', 'size'), wins=('win_lose', 'sum')).reset_index()
-            barrier_stats['strike_rate'] = (barrier_stats['wins'] / barrier_stats['tips'] * 100).fillna(0)
-            response["charts"]["barrier_performance"] = {'labels': barrier_stats['Barrier'].astype(str).tolist(), 'data': barrier_stats['strike_rate'].tolist()}
-        
-        if 'BestOdds' in merged_df.columns and 'win_lose' in merged_df.columns and merged_df['win_lose'].notna().any():
-            merged_df['odds_bin'] = pd.cut(merged_df['BestOdds'], bins=[0, 3, 5, 10, 20, 50, 1000], labels=['$1-3', '$3-5', '$5-10', '$10-20', '$20-50', '$50+'])
-            odds_perf = merged_df.groupby('odds_bin')['win_lose'].value_counts(normalize=True).unstack().fillna(0)
-            if 1 in odds_perf.columns:
-                 response["charts"]["odds_performance"] = {'labels': odds_perf.index.astype(str).tolist(), 'data': (odds_perf[1] * 100).tolist()}
-
-        if 'BestOdds' in merged_df.columns and 'bsp' in merged_df.columns and merged_df['bsp'].notna().any():
-            tipster_market = merged_df.groupby('Tip Website').agg(avg_tip_odds=('BestOdds', 'mean'), avg_bsp=('bsp', 'mean')).dropna().reset_index()
-            if not tipster_market.empty:
-                response["charts"]["tipster_vs_market"] = {
-                    'labels': tipster_market['Tip Website'].tolist(),
-                    'data1': tipster_market['avg_tip_odds'].tolist(),
-                    'data2': tipster_market['avg_bsp'].tolist(),
-                    'name1': 'Avg Tipped Odds',
-                    'name2': 'Avg BSP'
-                }
-
-        if 'JockeyName' in merged_df.columns:
-            jockey_tips = merged_df['JockeyName'].value_counts().head(20)
-            response['charts']['top_jockeys_by_tips'] = {'labels': jockey_tips.index.tolist(), 'data': jockey_tips.values.tolist()}
-        
-    if not race_data_df.empty:
-        field_sizes = race_data_df.groupby(['Track', 'Race'])['Horse Name'].count()
-        response['charts']['field_size_distribution'] = {'labels': field_sizes.value_counts().sort_index().index.astype(str).tolist(), 'data': field_sizes.value_counts().sort_index().values.tolist()}
-        if 'Prize_Numeric' in race_data_df.columns:
-            prize_bins = pd.cut(race_data_df['Prize_Numeric'], bins=[0, 25000, 50000, 100000, float('inf')], labels=['<25k', '25-50k', '50-100k', '100k+'])
-            prize_dist = prize_bins.value_counts().sort_index()
-            response['charts']['prize_money_distribution'] = {'labels': prize_dist.index.astype(str).tolist(), 'data': prize_dist.values.tolist()}
+    # ----- 7) Win rate vs field size -----
+    if "field_size" in merged.columns:
+        wr=merged.dropna(subset=["field_size"]).copy()
+        wr["field_size"]=wr["field_size"].round(0).astype(int)
+        grp=wr.groupby("field_size")["win_lose"].mean().fillna(0)*100
+        response["charts"]["win_rate_vs_field_size"]={
+            "labels":[str(i) for i in grp.index],
+            "data":grp.round(4).tolist()
+        }
 
     return clean_for_json(response)
 
+
+# ----------------------------
+# POST /analyze/
+# ----------------------------
 @app.post("/analyze/")
 async def analyze_betting_files(files: List[UploadFile] = File(...)):
-    if not files:
-        raise HTTPException(status_code=400, detail="No files uploaded.")
-        
-    dataframes = {}
-    
-    # Define the expected columns for each file type
-    column_definitions = {
-        "race_data": {'HorseName', 'JockeyName', 'RaceTrack', 'RaceNum'},
-        "win_prices": {'event_id', 'selection_name', 'bsp', 'pptradedvol'},
-        "place_prices": {'event_id', 'selection_name', 'bsp', 'pptradedvol'},
-        "tips": {'Tip Website', 'Scrape Date', 'Track', 'Race'}
-    }
+    if len(files) < 3:
+        raise HTTPException(status_code=400, detail="Please upload tips, race_data, and win_prices files.")
+    file_map={"tips":None,"race_data":None,"win_prices":None}
 
     for file in files:
-        content = await file.read()
-        try:
-            df = pd.read_csv(io.BytesIO(content))
-            df_columns = set(df.columns)
-            
-            if column_definitions["race_data"].issubset(df_columns):
-                dataframes["race_data"] = df
-            elif column_definitions["tips"].issubset(df_columns):
-                dataframes["tips"] = df
-            elif column_definitions["win_prices"].issubset(df_columns):
-                # Differentiate between win and place prices by checking event_name
-                if 'event_name' in df.columns and df['event_name'].str.contains('To Be Placed').any():
-                    dataframes["place_prices"] = df
-                else:
-                    dataframes["win_prices"] = df
-            else:
-                 logger.warning(f"Could not classify file: {file.filename}")
+        content=await file.read()
+        try: df=pd.read_csv(io.BytesIO(content))
+        except:
+            try: df=pd.read_excel(io.BytesIO(content))
+            except: raise HTTPException(status_code=400, detail=f"Could not read file: {file.filename}")
 
-        except Exception as e:
-            logger.error(f"Error parsing {file.filename}: {e}")
-            raise HTTPException(status_code=400, detail=f"Could not parse file: {file.filename}")
+        cols={c.strip() for c in df.columns}
+        if {"Tip Website","Track"}.issubset(cols) or "First Selection Name" in cols:
+            file_map["tips"]=df
+        elif {"HorseName","RaceTrack"}.issubset(cols) or {"RaceTrack","RaceNum"}.issubset(cols):
+            file_map["race_data"]=df
+        elif "bsp" in cols and "win_lose" in cols:
+            if "event_name" not in df.columns or not df["event_name"].astype(str).str.contains("To Be Placed",na=False).any():
+                file_map["win_prices"]=df
 
-    if not all(k in dataframes for k in ['tips', 'race_data', 'win_prices']):
-        raise HTTPException(status_code=400, detail="Please upload all three required file types: tips, race data, and win prices.")
-
+    if any(v is None for v in file_map.values()):
+        raise HTTPException(status_code=400, detail="One or more required file types could not be identified.")
     try:
-        cleaned_dataframes = clean_and_standardize_data(dataframes)
-        analysis_results = perform_full_analysis(cleaned_dataframes)
-        return analysis_results
+        cleaned=clean_and_standardize_data(file_map)
+        return perform_full_analysis(cleaned)
+    except HTTPException: raise
     except Exception as e:
-        tb_str = traceback.format_exc()
-        logger.error(f"Analysis error: {e}\n{tb_str}")
-        raise HTTPException(status_code=500, detail=f"An error occurred during data processing: {str(e)}")
+        tb=traceback.format_exc()
+        logger.error(f"Analysis error: {e}\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Error during processing: {str(e)}")
 
+
+# ----------------------------
+# Health & static frontend
+# ----------------------------
 @app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+async def health(): return {"status":"healthy"}
 
-script_dir = os.path.dirname(__file__)
-frontend_dir = os.path.join(os.path.dirname(script_dir), "frontend")
-
+script_dir=os.path.dirname(__file__)
+frontend_dir=os.path.join(os.path.dirname(script_dir),"frontend")
 if os.path.exists(frontend_dir):
-    # Add a specific route for favicon
-    @app.get("/favicon.ico", include_in_schema=False)
-    async def favicon():
-        return FileResponse(os.path.join(frontend_dir, 'favicon_io', 'favicon.ico'))
-        
+    @app.get("/favicon.ico",include_in_schema=False)
+    async def favicon(): return FileResponse(os.path.join(frontend_dir,'favicon_io','favicon.ico'))
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
-    
-    @app.get("/", response_class=FileResponse)
-    async def read_index():
-        return FileResponse(os.path.join(frontend_dir, 'index.html'))
+    @app.get("/",response_class=FileResponse)
+    async def root(): return FileResponse(os.path.join(frontend_dir,'index.html'))
 
-    @app.get("/{path:path}", include_in_schema=False)
-    async def static_proxy(path: str):
-        file_path = os.path.join(frontend_dir, path)
-        if os.path.exists(file_path):
-            return FileResponse(file_path)
-        raise HTTPException(status_code=404, detail="Not Found")
-else:
-    logger.error(f"Frontend directory not found at: {frontend_dir}")
 
+# ----------------------------
+# Run
+# ----------------------------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
